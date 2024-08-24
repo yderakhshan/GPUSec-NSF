@@ -1,0 +1,104 @@
+\renewcommand{\UrlFont}{\ttfamily\small}
+
+\usepackage{letltxmacro}
+% https://tex.stackexchange.com/q/88001/5764
+\LetLtxMacro\oldttfamily\ttfamily
+\DeclareRobustCommand{\ttfamily}{\oldttfamily\small}
+
+\usepackage{amssymb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+%% system name
+\newcommand{\tap}{TAP\xspace}
+
+%% fonts
+
+\newcommand{\m}[1]{\mathsf{#1}}
+\newcommand{\mi}[1]{\mathit{#1}}
+%% math
+\newcommand{\bnfdef}{::=}
+\newcommand{\bnfalt}{\,|\,}
+
+\newcommand{\rulename}[1]{\textsc{#1}}
+
+\newcommand{\eventp}{\mi{ev}}
+\newcommand{\event}{\m{ev}}
+\newcommand{\evname}{\mi{ev}}
+\newcommand{\all}{\m{A}}
+\newcommand{\exist}{\m{E}}
+\newcommand{\until}{\mathrel{\m{U}}}
+
+\newcommand{\stepsto}{\longrightarrow}
+\newcommand{\mstepsto}{\longrightarrow^*}
+\newcommand{\evalsto}{\Downarrow}
+
+
+
+\newcommand{\prop}{\varphi}
+\newcommand{\stateform}{\alpha}
+\newcommand{\ef}{\m{EF}}
+\newcommand{\eu}{\m{EU}}
+\newcommand{\eg}{\m{EG}}
+\newcommand{\ex}{\m{EX}}
+\newcommand{\af}{\m{AF}}
+\newcommand{\ag}{\m{AG}}
+\newcommand{\ax}{\m{AX}}
+\newcommand{\au}{\m{AU}}
+
+%% proofs
+\newcommand{\ee}{\mathcal{E}}
+\newcommand{\eff}{\mathcal{E}_\mathit{ff}}
+\newcommand{\de}{\mathcal{D}}
+
+\newcommand{\ifttt}[0]{IFTTT\xspace} % {$\mathit{IFTTT}$}
+
+\usepackage{eqparbox}
+\newdimen{\algindent}
+\setlength\algindent{1.5em}
+\algnewcommand\LeftComment[2]{%
+\hspace{#1\algindent}$\triangleright$ \eqparbox{COMMENT}{#2} \hfill %
+}
+
+\algnewcommand\algorithmicforeach{\textbf{for each}}
+\algdef{S}[FOR]{ForEach}[1]{\algorithmicforeach\ #1\ \algorithmicdo}
+% \floatname{algorithm}{Procedure}
+% \renewcommand{\algorithmicrequire}{\textbf{Input:}}
+% \renewcommand{\algorithmicensure}{\textbf{Output:}}
+
+\newtheorem{property}{Property}
+
+\renewcommand{\paragraph}[1]{\vspace{1ex}\noindent{\bf #1}}
+%% comments
+% turn off comments by uncommenting the following command and
+% commenting out the second notes command
+ \newcommand{\notes}[2]{}
+% turn on comments by commenting out the previous note command and
+% uncommenting the following command
+%\newcommand{\notes}[2]{{\bf\textsf{\textcolor{#1}{#2}}}}
+\newcommand{\limin}[1]{\notes{magenta}{Limin says: #1}}
+\newcommand{\todo}[1]{\notes{red}{TODO: #1}}
+\newcommand{\farzaneh}[1]{\notes{blue}{Farzaneh says: #1}}
+
+
+%% Tasks
+
+%% \newcounter{mydefcounter}
+%% \renewcommand{\themydefcounter}{\arabic{section}.\arabic{subsection}.\arabic{mydefcounter}}
+%% \newcommand{\mydef}[1]{\refstepcounter{mydefcounter}\label{#1}\themydefcounter}
+
+\newcommand{\secref}[1]{Section~\ref{#1}}
+
+
+\newcounter{tasknmbr}
+\newcounter{subtasknmbr}[tasknmbr]
+\renewcommand{\thesubtasknmbr}{\arabic{tasknmbr}-\alph{subtasknmbr}}
+\newcommand{\newtask}[1]{\refstepcounter{tasknmbr}\label{#1}}
+\newcommand{\newsubtask}[1]{\refstepcounter{subtasknmbr}\label{#1}} %\thesubtasknmbr}
+\newcommand{\taskref}[1]{Thrust~\ref{#1}}
+
+%% \newcounter{tasknmbr}[subsection]
+%% \newcounter{tasklabel}
+%% \renewcommand{\thetasklabel}{\arabic{subsection}-\thetasknmbr}
+%% \newenvironment{task}{\begin{list}{\textbf{Task \thetasklabel}:}{\usecounter{tasklabel}\stepcounter{tasknmbr}\setlength{\labelwidth}{\widthof{\textbf{Task X-X}}}\setlength{\leftmargin}{5em}\item\em}}{\\[-7pt]\end{list}}
+

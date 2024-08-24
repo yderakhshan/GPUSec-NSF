@@ -1,0 +1,86 @@
+\documentclass[11pt]{article}
+%\usepackage{mathpazo}
+\usepackage[margin=1in,paper=letterpaper]{geometry}
+% \usepackage{fullpage}
+\input{packages}
+
+\externalcitedocument{references}
+
+%\usepackage[hidelinks]{hyperref}
+
+\pagestyle{empty}
+%\pagestyle{plain}
+
+\setlength{\textheight}{9in}
+\setlength{\pdfpagewidth}{\paperwidth}
+\setlength{\pdfpageheight}{\paperheight}
+\newif\ifsplit
+\splitfalse 
+\input{macros}
+\begin{document}
+
+
+%  \begin{titlepage} \begin{raggedright}
+%      {\LARGE\bf Collaborative Research: SaTC: CORE: Small:
+% Mixed Assurance Reasoning via Modal Logic}
+% \\
+% \begin{tabbing}
+%  August 15th, 2023\\
+%  Program Solicitation NSF 22-517
+%  \end{tabbing}
+%  \end{raggedright} 
+%  % \lujo{need to standardize on capitalization of subsubsections}
+%  % \limin{make sure not to duplicate our citations}
+
+% \end{titlepage}
+
+
+%  \pagebreak
+
+
+%%  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  \thispagestyle{empty} \setcounter{page}{0}
+
+
+ 
+%% \part*{Project Summary} % 1 page
+%% \input{summary}
+
+
+%%\pagebreak
+%%\setcounter{page}{1}
+% up to 15-page Project Description
+
+
+\section{Introduction}
+\input{sections/intro.tex}
+
+\section{Background and Related Work}
+\input{sections/background.tex}
+
+\section{Thrust 1: A Secure Programming Model for CUDA}
+\input{sections/thrust1.tex}
+
+\section{Thrust 2: }
+\input{sections/thrust2.tex}
+
+\section{Thrust 3: Case Studies and Evaluation}
+\input{sections/thrust3.tex}
+
+\section{Broader Impacts}
+\input{sections/impacts.tex}
+
+\section{Results from Prior NSF Support}
+\input{sections/priornsf.tex}
+
+\ifsplit
+\else
+\FloatBarrier
+\newpage
+
+\pagenumbering{arabic}
+\bibliographystyle{plain}
+\bibliography{./bibs/farzaneh.bib,./bibs/stefan.bib}
+\fi
+
+\end{document}

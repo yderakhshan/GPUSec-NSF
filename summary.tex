@@ -1,0 +1,127 @@
+\documentclass[11pt]{article}
+\usepackage{times}
+%\linespread{1.03}
+\usepackage[margin=1in,paper=letterpaper]{geometry}
+\pagestyle{empty}
+
+ \renewcommand\input[1]{%
+     \InputIfFileExists{#1}{}{\typeout{No file #1.}}%
+ }
+
+%\input{packages}
+%\input{macros}
+%\usepackage{xcite}
+%\externalcitedocument{references}
+
+\begin{document}
+
+%% \todo{at 7/19 meeting discussion:
+%% \begin{itemize}
+%%     \item Using the cookie labels error feedback to explain what's wrong, or more precisely identify the problem
+%%     \item developing a browser extension to read the cookie consent, then check/enforce the policy by looking at cookies stored
+%%     \item check out tracking pixels
+%%     \item articulate what would be interesting for studying PWA 
+%% \end{itemize}
+%% }
+\noindent {\bf Overview}
+
+Software applications have become omnipresent in our lives, and their
+safety and security guarantees have far-reaching impacts on everyone's lives.
+%
+However, there have been serious incidents that have raised
+concerns about the safety and security of software.
+Therefore, formal reasoning about these guarantees has become increasingly important.
+%
+However, software systems are usually complex, multi-component, and
+concurrent.
+%
+While formal verification provides the highest assurance,
+very few companies can afford the cost of it.
+%
+On the other hand,
+lower-effort approaches such as testing, applying linting tools, and
+peer code review have been widely adopted in the industry. 
+%
+In addition,
+a complex system may include differently analyzed components: some are tested, some go through a static analysis, while others undergo code review.
+%
+
+The proposed research aims to answer the question of how to formally reason about the safety, reliability, and security assurances of such complex systems when heterogeneous analysis methods are applied.
+%
+In addition, the research investigates, in the event of an incident, how we can apply counterfactual reasoning to identify the cause of the issue and refine or harden the analyses or software to prevent future incidents.
+% In addition, when incidents occur, how
+% can we apply counterfactual reasoning to identify the cause of the
+% issue and refine or harden the analyses or software to prevent future
+% incidents.
+%
+The project consists of three thrusts. 
+%
+{\bf Thrust 1} will develop the logical and semantic foundations for
+compositional assurance reasoning.
+%
+We will leverage modal operators such as possibility and necessity in modal logic to express truth derived from under-approximate (incomplete) analysis and truth derived from over-approximate (complete) analysis, respectively.
+%
+Then, we will define reasoning principles to compose results from different types of analysis. 
+%
+To be concretely applicable to the analysis of programs for
+assurance, we will develop a Kripke semantics based on the program execution semantics to give meaning to the logical formulas.
+%
+We will also develop automated reasoning tools for our logic. 
+%
+{\bf Thrust 2} will develop counterfactual reasoning principles to aid the refinement of the analysis and repairing programs.
+%
+It aims to address the gap between abstract modeling, incomplete analysis, and concrete program executions.
+%
+Once an incident occurs, our counterfactual reasoning principles will identify a set of analyses and system components that cause the issue.
+%
+We will then develop algorithms to generate suggestions to refine the analyses and the system implementation to prevent the incidence from occurring in the future. 
+%
+{\bf Thrust 3} will evaluate
+the expressiveness, effectiveness, and efficiency of our approach via
+case studies. We will use existing security incidences
+reported in recent years in the application domain of web applications
+and microservices. These applications have multiple components and
+frequently rely on third-party components, which lead to components of
+the applications being analyzed via different methods. 
+
+\noindent {\bf Intellectual Merit}
+
+The proposed research will develop novel logical foundations for sound software assurance reasoning that
+compose analyses with different assurance levels and are tightly connected to the underlying program semantics.
+%
+This project will also leverage property violations and vulnerabilities caused by imprecise or incomplete analyses and modeling in assurance reasoning to help refine the model, the analyses, and the programs, and help analysts discover these hidden assumptions that make the original analysis unsound
+This will make the assurance reasoning
+procedure iterative and better kept up with the software's evolution.
+%
+% The automated reasoning tools developed through this project will help make assurance reasoning applicable to large systems in practice. 
+% The proposed research, if successful, will develop logical foundations
+% for software assurance reasoning that are tightly connected to the
+% underlying program semantics and guarantees provided by a variety of
+% analyses. This project will also leverage property violations and
+% vulnerabilities caused by imprecise or incomplete analyses and
+% modeling in assurance reasoning to help refine the model, the
+% analyses, and the programs. This will make assurance reasoning
+% procedure iterative and better kept up with the evolution of the
+% software. 
+
+%The automated reasoning tools that this project will develop will help make the assurance reasoning practically applicable to large systems. 
+
+\noindent {\bf Broader Impacts}
+
+The results of this project can help analysts better understand the implications of mixed assurance reasoning, as well as better debugging and fixing their analyses in the presence of breaches or bugs that violate the guarantees thought to hold.
+%
+As software systems become increasingly complex, their assurance is getting harder to analyze. The reasoning
+principles and tools developed by this project can help improve the software quality by encouraging explicit specifications of the assumptions and guarantees made by each component and allowing software to be gradually more tested and updated, one component at a time.  
+%
+The automated reasoning tools developed in this project will
+be open-sourced, enabling other researchers and analysts to
+analyze real-world systems. 
+%The PIs will incorporate the proposed research into
+%existing security courses that they teach.
+
+
+ \noindent {\bf Keywords:} Formal Methods and Language-based Security; Software
+
+
+
+\end{document}

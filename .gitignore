@@ -1,0 +1,11 @@
+*.exe
+*.fls
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.log
+*.pdf
+*.synctex.gz
+*.swp
+.DS_Store
