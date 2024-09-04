@@ -1,6 +1,58 @@
-\subsection{Motivating Example}
-AES encryption algorithm. Each GPU thread encrypts a 16-byte block independently.
+\subsection{Motivating Example: AES encryption algorithm.}
+
+
+
+We consider a table-based cryptographic algorithm (AES encryption) as an example.
+%
+In the look up version of AES,
+SubByte, ShiftRow and MixColumn operations are integrated to perform lookups on four lookup T-tables.
+%
+We assume look up tables are stored on shared memory.
+%
+Each GPU thread encrypts a 16-byte block independently.
+%
 The algorithm does the exact same thing to each block.
+% We transform the AES encryption procedure into a single
+% GPU kernel, where each GPU thread can process one block
+% encryption, independently. 
+%
+% Each block consists of 16 bytes.
+%
+The attacker targets the last-round key.
+%
+The attacker can realize the roundkey by calculating the bank conflicts on the look up table.
+%
+The number of bank conflicts depends on the key. 
+%
+(It also depend on the implementation and layout of data on shared memory.)
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[clip,trim=0 4cm 0 0cm,width=0.7\pdfpagewidth]{figs/AES1.pdf}
+    \caption{AES encryption leakage \farzaneh{refine}}
+\end{figure}
+
+% The key is fixed. Test it using a given plaintext to find the key.
+% Accessing shared memory depends on the key.
+
+
+
+%
+
+% AES: shared memory accesses are dependent on the key. 
+% %
+
+
+
+
+
+
+% As the constant cache stores data
+% from constant memory that can be shared by threads
+% in a warp, for AES encryption we use this space to store
+% round keys.
+
+
 
 \input{sections/thrust1/1a.tex}
 \input{sections/thrust1/1b.tex}

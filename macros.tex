@@ -72,10 +72,10 @@
 %% comments
 % turn off comments by uncommenting the following command and
 % commenting out the second notes command
- \newcommand{\notes}[2]{}
+% \newcommand{\notes}[2]{}
 % turn on comments by commenting out the previous note command and
 % uncommenting the following command
-%\newcommand{\notes}[2]{{\bf\textsf{\textcolor{#1}{#2}}}}
+\newcommand{\notes}[2]{{\bf\textsf{\textcolor{#1}{#2}}}}
 \newcommand{\stefan}[1]{\notes{magenta}{stefan says: #1}}
 \newcommand{\todo}[1]{\notes{red}{TODO: #1}}
 \newcommand{\farzaneh}[1]{\notes{blue}{Farzaneh says: #1}}

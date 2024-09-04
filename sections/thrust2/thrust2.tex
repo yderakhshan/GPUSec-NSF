@@ -1,5 +1,60 @@
 \subsection{Motivating Example}
-Either the AES encryption algorithm (as in thrust 1) or an LLM example.
+% Either the AES encryption algorithm (as in thrust 1) or an LLM example.
+\farzaneh{Raw text from previous work}
+We use the same AES encryption key example.
+%
+This time the attacker (adversary) coexists with the legitimate process on GPU, aka they share a GPU. (in comparison to the first thrust where the adversary could only observe the \# of bank conflicts or time passed or energy?)
+%
+Moreover the adversary can read the ciphertext. (Similar to the first thrust.)
+%
+There are two forms of leakages: plaintext leakage vs key leakage.
+%
+In the plaintext leakage, the attacker is successful by gaining access to the plaintext directly. 
+%
+In the key leakage the attacker is successful by gaining access to \emph{some workds} of the encryption key. 
+%
+If the attacker gets access to all words of the encryption key, then they can infer the plaintext since they know the ciphertext.
+%
+But even accessing some words of the encryption key is also dreadful. 
+%
+The attacker can gain access to the rest by a brutforce (but quicker than when they didn't know all the words).
+
+
+With the attack in~\cite{}, we are able to leak only the final state of the previous GPU process. 
+%
+It is due to the exclusive access granted by the driver to host threads that access the GPU; only one cudaContext is
+allowed to access the GPU at a given time.
+%
+Sometimes the final state is of high confidentiallity: the decryption of a
+ciphertext, the output of a risk-analysis function or the Universal Transverse Mercator (UTM) locations of an oil
+well.
+%
+But sometimes the final state is of low confidentiality of public:
+encryption algorithm.
+%
+We can capture this by our taint analysis.
+%
+This is not only the "output". 
+%
+But the residues in the memory in the final state (side effects of the program).
+%
+For example, if in the final state of an encryption algorithm, we still have the plaintext on the global memory, the attacker can get access to it.
+
+
+Using cudaHostAlloc is not more safe than cudaMalloc: it is fully vulnerable to information leakage as well.
+In fact, the CUDA Runtime copies the data to the GPU’s global memory on behalf of the programmer when it
+is more convenient.
+This is important since it shows that even code implemented by “experts” actually shows the
+same deficiencies as regards security. This finding, together with the others reported in the paper, call for solutions
+to this severe vulnerability.
+
+
+Most often the programmer does not have fine control over kernel code (e.g. if the kernel is the outcome of
+high-level programming environments such as JavaCL, Jcuda [22], etc);
+The kernel programmer usually aims at writing the fastest possible code without devoting time to address
+security/isolation issues that might hamper performance.
+
+So hardware/driver level measures are also needed?
 
 \input{sections/thrust2/2a.tex}
 \input{sections/thrust2/2b.tex}

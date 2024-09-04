@@ -1,0 +1,74 @@
+\subsection{LLM}
+
+\farzaneh{\bf Text from \cite{pustelnik2024arxiv}:}
+
+Hence, a lot of business cases for the utilization of
+LLMs have emerged, ranging from automatically handling
+customer service requests to tasks such as text content
+generation.
+
+
+Datacenter providers have also noticed this
+increasing trend of AI advancements and offer GPU-asa-
+Service (GaaS),renting GPU computational power
+on demand.
+Providers also aim to reduce underutilized
+resources as much as possible. Allocating a complete GPU
+to a single container or virtual machine (VM) can be
+considered a waste of resources if either only a fraction
+or only a limited time of processing power is needed.
+
+The
+ability to share GPUs gives the provider a cost-effective
+measure to adapt to varying workloads. As industrial
+examples, Google's Kubernetis Engine allows to share
+a GPU between up to 48 tenants, while Microsoft build
+GPU Paravirtualization into the Hyper-V Hypervisor, allowing
+VMs to share a single GPU
+
+
+ how an attacker can extract
+information from a GPT-2 LLM running on the same
+GPU. 
+(Generative Pre-trained Transformer
+by OpenAI, GPT-2, which is the open-source predecessor
+to the proprietary model used in ChatGPT)
+
+GPT-
+2 particularity uses Byte Pair Encoding (BPE).
+
+For each word in the sequence, three vectors
+are provided: query (q), key (k) and value (v). When
+generating a word, the attention mechanism calculates
+similarity scores between different parts of the sequence
+using these vectors.
+
+The GPT-2 architecture further involves multiple
+attention mechanisms in parallel - this allows for learning
+multiple features of word dependence. Not only are semantic
+connections between words captured, but attention
+applied in parallel allows for capturing different grammar
+rules in different heads.
+
+The last important layer in the Transformer is a Feed-
+Forward Neural Network, which is a 2-layer fully connected
+network. This adds further trainable parameters
+to the network, which allow each token to process the
+previously seen similarities.
+
+Efficient Reconstruction. For reconstructing the
+leaked input/output of GPT-2, we implemented an
+efficient reconstruction algorithm, which is a necessity
+since a brute-force search approach exceeds the memory
+limits on our machine. First, we calculate all possible
+permutations of embeddings and positional encodings
+(Line 12). We use the values of all created vectors as
+an index for look-up-table, where each entry determines
+whether a value is contained in the matrix and if yes,
+for which tokens and positions (Line 17). We use
+the binary integer representation of the floating point
+values for the table index.
+
+In this setup, we target a NVIDIA GPU, since
+the model parameter size explosion of LLMs can only
+be handled by thoses datacenter-class accelerators.
