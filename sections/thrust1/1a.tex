@@ -1,5 +1,40 @@
-\subsection{Task 1.a.} What we have developed so far with Godha.
-With focus on bank conflicts, but general enough to all sorts of costs.
-Explain the type system.
-Relational Hoare Logic
-Logical relation
+\subsubsection{Task 1.a.} \farzaneh{What we have developed so far with Godha.
+With focus on bank conflicts, but general enough to all sorts of costs.}
+This proposed tasks consists of two main contributions, first we will develop an information flow control (IFC) type system that ensures secure flow of information considering the timing attack.
+%
+This would be a static type system.
+%
+Next, we develop a resource-aware (?) Relational Hoare Logic as a semantic typing for IFC (?). 
+%
+\farzaneh{Put more here based on Amal and Jan's RHL.}
+
+\paragraph{IFC type system.}
+
+\paragraph{Resource-aware evaluation rules.}
+
+\paragraph{Resource aware - Relational Hoare Logic.}
+The judgment will be of the form 
+%
+\[\{\Phi; Q; X\} p_1 \sim p_2 \{\Phi'; Q'; X'\}\]
+%
+where $p_1$ and $p_2$ are programs the we want to relate.%
+$\Phi$ is the precondition that describes the relation between the two states before running programs $p_1$ and $p_2$. 
+%
+$Q$ is
+%
+$X$ is
+%
+$\Phi'$ is the precondition that describe the relation between the two states after running programs $p_1$ and $p_2$.
+%
+$Q'$
+%
+$X'$
+
+We will need two forms of rules, synchronized and unscynchronized:
+\[
+\infer[]{ \Phi \Rightarrow \mathtt{diff\_conflicts}(o_1,o_2) \le n\\  \Phi \vdash e_1 \sim e_2 : m}{\{\Phi; Q+n+m; X\} S_1[o_1] \leftarrow e_1 \sim S_2[o_2] \leftarrow e_2 \{\Phi; Q; X\}  }
+\]
+
+% Explain the type system.
+% Relational Hoare Logic
+% Logical relation

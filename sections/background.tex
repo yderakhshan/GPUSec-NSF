@@ -1,39 +1,35 @@
-\farzaneh{intro on GPU} Graphical Processing Unit (GPU) devices were originally designed for rendering graphics efficiently.
+\farzaneh{intro on GPU} Graphical Processing Unit (GPU) devices were originally designed to render graphics efficiently.
 %  and outputting to a display device.
 %
-However, with their multi-threading capabilities providing an unprecedented computational speed, they soon went further than their original use case and got used in general purposedd computation. 
+However, with their multi-threading capabilities providing an unprecedented computational speed, they have expanded beyond their original use case.
 %
-Nowadays, GPUs are essential in general-purpose computing particularly for applications that work with huge data and need parallelizing their heavy workloads.
+Nowadays, GPUs are essential in general-purpose computing, particularly for applications that handle massive amounts of data and require parallelization to manage their heavy workloads.
 %
-For example, training a neural network with vast amounts of data such as audio, text or images gets boosted in speed by a GPU.
+% For example, training a neural network with vast amounts of data such as audio, text or images gets boosted in speed by a GPU.
 %
 With GPUs being used for general purposed computing, most of the everyday users can also benefit from that.
 %
-For example, encryption/decryption of large data sets, and training an LLM model.
+For example, tasks like encryption/decryption of large data sets and training a LLM model can be carried out more efficiently with the use of GPUs.
 %
-However, it is not always resourceful to allocate a complete GPU to a single machine when only a fraction of time or processing power it will be used.
+However, it is not always efficient to allocate an entire GPU to a single machine when only a fraction of the processing power will be utilized.
 %
 Datacenter providers started to provide GPU-as-a-service(GaaS) on cloud.
 %
-For example: Google's Kubernetis Engine allows to share
-a GPU between up to 48 tenants, while Microsoft build
-GPU Paravirtualization into the Hyper-V Hypervisor, allowing VMs to share a single GPU
+For instance, Google's Kubernetes Engine allows for the sharing of a GPU among up to 48 tenants, while Microsoft has incorporated GPU paravirtualization into the Hyper-V Hypervisor, enabling VMs to share a single GPU.
 % also serve as a powerful platform for accelerating
 % ubiquitous, non-graphical rendering tasks.
 % GPUs' ability to execute thousands of threads concurrently makes them essential in general-purpose computing.
 \farzaneh{importance of cloud services to deliver high throughput.}
 Most of these applications involve confidential data. 
 %
-For example, in LLM, they work with large set of personal data based on the application, e.g., medical data.
+For example, in LLM, they work with a large set of personal data based on the application, e.g., medical data.
 %
 In cryptography, both the plaintext and the encryption key are confidential.
 %
-While modern operating systems deploy
-tight sandboxing and access management in order to
-enforce hard boundaries between applications, recent research showed that there are several caveats in security of GPUs.
+While modern operating systems use tight sandboxing and access management to create strict boundaries between applications, recent research has revealed several security vulnerabilities in GPUs.
 %
-Research on CPUs cannot be directly applied here, mainly because the memory pattern acces and parallelism paradigm is different from CPU which introduces new attacker models including new side channel attacks.
-%
+Research on CPUs cannot be directly applied here, mainly because the memory pattern access and parallelism paradigm are different from CPU, which introduces new attacker models, including new side-channel attacks.
+
 % Here we look at two main category of attacks.
 %
 % However, its memory layout and the cost properties introduce vulnerabilities, e.g., shared memory bank conflicts.
@@ -44,6 +40,7 @@ Prior work showed several such vulenrabilities, ranging from leaking via a timin
 %
 However, studying it from a language-based security is missing.
 %
+
 We propose a language-based security approach toward GPU security, that allows for undersanding the foundation of such attacks, and provide solutions that are not ad-hoc.
 %
 It allows for understanding the fundamentals of security in this new concurrency paradigm.
@@ -51,13 +48,11 @@ It allows for understanding the fundamentals of security in this new concurrency
 It provides provable security.
 %
 With this fundamental understanding it will also be more feasible to incorporate it with prior work on CPU, etc.
-%
-
 
 
 This is the goal of this work: the first language-based security analysis for GPU concurrency paradigm.
 %
-We consider two main attacks.
+We consider two main from of attacks.
 %
 They both raised by the unique memory layout of GPU.
 %

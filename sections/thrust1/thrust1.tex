@@ -1,30 +1,113 @@
 \subsection{Motivating Example: AES encryption algorithm.}
 
+% We consider a table-based AES encryption algorithm as an example.
+%
+Advanced Encryption Standard (AES) is one of the most popular encryption algorithms.
+%
+Given a cipher key, the AES algorithm applies iterative rounds of transformations  to encrypt a confidential input (plaintext) such as passwords and private messages into the ciphertext.
+%
+The iterative transformations are done sequentially, with the same set of commands, except the last round which is slightly different. 
+%
+Each round also transforms the cipher key based on a key schedule so we call the key for each round, the round key. 
+%
+AES is symmetric-key meaning that the same key used in the decryption, i.e., anyone who knows the cipher key can deduce the confidential plaintext from the cipher text. 
+%
+the same key is used to decrypt the ciphertext back to the original plaintext.
+
+AES is a block cipher algorithm that works on fixed-sized blocks of 128 bits.
+%
+It means that the transformations apply on fixed-sized blocks of 128 bits.
+%
+Each block of the plaintext is encrypted separately.
+%
+The block is a 4 x 4 two-dimential array which we call the input state and is transformed into another 4 x 4 array  which we call the round output state.
+%
+The output state of one round will be the input state of the next round.
+%
+
+\farzaneh{put the transoformation for one round.}
+
+Since the transformations are the same in all blocks, they can be summarized in T-look up tables.
+%
+For each round, it reads each byte of the input state and use it as the index to the look up key to get T(x), then it uses * to calculate the output state. 
+%
+All rounds use the same T-look up table, except the final round which is slightly different.
+%
+y. To speedup the process,
+pre-computed tables are used and each round can be implemented with a sequence of table lookups and bit-wise XOR
+operations with the round keys, which are expanded from
+the 128-bit key
+The output of one round is used as indices of the table lookups in the next round, except for the
+fnal round, whose output is the ciphertext.
+Each AES round can be implemented using four lookup
+tables and XORs only, avoiding the expensive polynomial multiplications under.
+his approach significantly accelerated
+the computation, at the cost of larger memory space required: it
+requires four lookup tables each using 256 x 4 bytes
+
+The fundamental reason is that the correlation between the degrees of memory un-coalescing/bank
+conficts and the execution time leaks the table index information through the timing channel.
+%
+n, it is also known that
+the table-based AES leaves key-dependent footprints in data
+caches, thereby becoming vulnerable to prime-and-probe attacks [21], aka access-driven cache attacks [14, 18],
+The input state of each round depends on the plain text and the input state of the previous round and the round key.
+%
+Consider the final round, for example,
+
+Input to round 10:
+
+8fe5e78f0fd14cf77c816b55e8cce57f
 
 
-We consider a table-based cryptographic algorithm (AES encryption) as an example.
+
+so that they can only be accessed by the parties with high enough security clearance.
 %
-In the look up version of AES,
-SubByte, ShiftRow and MixColumn operations are integrated to perform lookups on four lookup T-tables.
+AES encrypts a data block of length 128-bits storing confidential data.
+% 
+In AES, a key (which can be a word or phrase) is used to encrypt the plain text data to cipher text and the same key is used to decrypt the ciphertext back to the original plaintext.
 %
-We assume look up tables are stored on shared memory.
+The plain text cannot be read by any other party except those that possess the key.
 %
-Each GPU thread encrypts a 16-byte block independently.
+The encryption phase of AES is applied on each data block of 128 bits by running the same set of steps in iterative rounds.
 %
+\farzaneh{on each byte of the block}
+% It applies 10, 12, or 14 rounds in algorithm and the key can be of size 128, 192, or 256 bits depending on the number of rounds.
+% AES is an iterated symmetric block cipher, which means that AES works by repeating the same defined steps multiple times.
+%
+For a plain text of large size, the GPU parallel pardigm can significantly increase the speed of each round of encryption by applying the steps of a round on all blocks of the plaintext simultaneously (the AES encryption algorithm can be easily parallelized).
+%
+\farzaneh{and all bytes of the same block.}
 The algorithm does the exact same thing to each block.
+
+
+We consider a table-based implementation of the encryption algorithm in which the steps of each round is summarized as a lookup table.
+%
+The algorithm reads a block from the memory, for each byte of the block, it calculates an index and looks up the look up table for that index, and replace the byte with a bitwise XOR of the value stored in the look up table and the round key.
+%
+Since T-tables are constant data and shared by all threads, they are an excellent candidate to store in the shared memory. We assume look up tables are stored on shared memory.
+%
+\farzaneh{each thread can perform the steps of the round for each byte.}
+
+What indices of the T-tables will be accessed depends on the output text from the previous round which in turn (ultimately) depends on the previous round key and the original plain text. 
+% 
+% Each GPU thread encrypts a 16-byte block independently.
+%
 % We transform the AES encryption procedure into a single
 % GPU kernel, where each GPU thread can process one block
 % encryption, independently. 
 %
 % Each block consists of 16 bytes.
 %
-The attacker targets the last-round key.
+The attacker targets the last-round key. \farzaneh{I'm not sure why last-round and not one to the last?}
 %
-The attacker can realize the roundkey by calculating the bank conflicts on the look up table.
+The attacker can observe the number of bank conflicts (different accesses to the look up table), and based on that number can deduce information about the round key.
 %
-The number of bank conflicts depends on the key. 
+The number of bank conflicts depends on the key and the plain text. 
 %
-(It also depend on the implementation and layout of data on shared memory.)
+For example, by observing the bank conflicts, the attacker can distinguish the following two round keys/plain text.
+
+% (It also depend on the implementation and layout of data on shared memory.)
 
 \begin{figure}[h]
     \centering
@@ -32,6 +115,34 @@ The number of bank conflicts depends on the key.
     \caption{AES encryption leakage \farzaneh{refine}}
 \end{figure}
 
+\farzaneh{Several similar attacks have been described in the literature~\cite{??}.}
+\farzaneh{Should we also add coalescing access of Global memory?}
+\paragraph{Challenge 1.} The example above is a show-case for the different memory model and parallelism paradigm used in GPU programming. If we naively use the methods developed for CPU parallelism paradigm and its memory model, we cannot capture this new form of side channel attacks.
+%
+In GPU parallelism paradigm, all threads in one block run the exact same code. 
+%
+Having different code result in sequentialization of the system which in turn results in different timing behavior. \farzaneh{Maybe the AES example is not the best, because we cannot explain these parts. I'll try to come up with another example.}
+%
+We need to design a typing system with this memory model and attack model in mind to ensure that we do not leak information.
+
+
+\farzaneh{move to related work?}This difference has been noticed by several prior work and has been * in attacks. However, the particular solutions that are provided are ad-hoc to each particular exam and are not proved to be correct.
+%
+
+
+
+
+\paragraph{Challenge 2.} Avoiding any possible leak is too restrictive and also not realistic. 
+%
+Small differences in the number of bank conflicts may not even be detectable by the attacker given the undeterministic environment.
+%
+For example, if the attacker can observe both CPU and GPU runtime (?).
+%
+Moreover, even if the attacker observes some information it is ok if we leak some sort of information (another reason why LLM is a betetr example).
+%
+If we be too restrictive and avoid every form of leakage, then we cannot train LLM at all. 
+%
+What we want however, is to ensure that the information that the attacker observes does not increase its chances a lot for guessing private information enclosed in the training data set.
 % The key is fixed. Test it using a given plaintext to find the key.
 % Accessing shared memory depends on the key.
 
@@ -53,7 +164,7 @@ The number of bank conflicts depends on the key.
 % round keys.
 
 
-
+\subsection{Proposed work}
 \input{sections/thrust1/1a.tex}
 \input{sections/thrust1/1b.tex}
 \input{sections/thrust1/1c.tex}
