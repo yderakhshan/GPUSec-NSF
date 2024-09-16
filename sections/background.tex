@@ -1,34 +1,34 @@
-\farzaneh{intro on GPU} Graphical Processing Unit (GPU) devices were originally designed to render graphics efficiently.
+\farzaneh{intro on GPU} \stefan{Everything above the ``Parallelism and memory behavior in GPU'' paragraph heading reads to me more like an introduction. Do we want to move this there and just have a short ``here we discuss the GPU execution model and its vulnerabilities in more detail'' para here?} Graphical Processing Unit (GPU) devices were originally designed to render graphics efficiently.
 %  and outputting to a display device.
 %
-However, with their multi-threading capabilities providing an unprecedented computational speed, they have expanded beyond their original use case.
+However, with their multi-threading capabilities providing unprecedented computational speed, they have expanded beyond their original use case.
 %
 Nowadays, GPUs are essential in general-purpose computing, particularly for applications that handle massive amounts of data and require parallelization to manage their heavy workloads.
 %
 % For example, training a neural network with vast amounts of data such as audio, text or images gets boosted in speed by a GPU.
 %
-With GPUs being used for general purposed computing, most of the everyday users can also benefit from that.
+With GPUs being used for general purpose computing, everyday users can also benefit from their extensive hardware parallelization.
 %
-For example, tasks like encryption/decryption of large data sets and training a LLM model can be carried out more efficiently with the use of GPUs.
+For example, tasks like encryption/decryption of large data sets and training an LLM model can be carried out more efficiently with the use of GPUs.
 %
-However, it is not always efficient to allocate an entire GPU to a single machine when only a fraction of the processing power will be utilized.
+However, it is not always efficient to allocate an entire GPU to a single application when only a fraction of the processing power will be utilized.
 %
-Datacenter providers started to provide GPU-as-a-service(GaaS) on cloud.
+Recognizing this, datacenter providers have started to provide GPU-as-a-service(GaaS) on cloud.
 %
 For instance, Google's Kubernetes Engine allows for the sharing of a GPU among up to 48 tenants, while Microsoft has incorporated GPU paravirtualization into the Hyper-V Hypervisor, enabling VMs to share a single GPU.
 % also serve as a powerful platform for accelerating
 % ubiquitous, non-graphical rendering tasks.
 % GPUs' ability to execute thousands of threads concurrently makes them essential in general-purpose computing.
 \farzaneh{importance of cloud services to deliver high throughput.}
-Most of these applications involve confidential data. 
+Many of these applications involve confidential data. 
 %
-For example, in LLM, they work with a large set of personal data based on the application, e.g., medical data.
+For example, LLMs may work with a large set of personal data based on the application, e.g., medical data.
 %
 In cryptography, both the plaintext and the encryption key are confidential.
 %
 While modern operating systems use tight sandboxing and access management to create strict boundaries between applications, recent research has revealed several security vulnerabilities in GPUs.
 %
-Research on CPUs cannot be directly applied here, mainly because the memory pattern access and parallelism paradigm are different from CPU, which introduces new attacker models, including new side-channel attacks.
+Research on CPUs cannot be directly applied here, mainly because the memory model and parallelism paradigm are different from CPUs, which introduces new attacker models, including new side-channel attacks.
 
 % Here we look at two main category of attacks.
 %
@@ -38,7 +38,7 @@ Research on CPUs cannot be directly applied here, mainly because the memory patt
 %
 Prior work showed several such vulenrabilities, ranging from leaking via a timing channel rooted from the unique memory access pattern of GPUs across multiple threads to shared memory (?) and register spills rooted from scheduling of multiple shaders (applications?) on a single GPU.
 %
-However, studying it from a language-based security is missing.
+However, a study of these vulnerabilities from the perspective of language-based security is missing from the literature.
 %
 
 We propose a language-based security approach toward GPU security, that allows for undersanding the foundation of such attacks, and provide solutions that are not ad-hoc.
@@ -96,8 +96,15 @@ We discuss related work while describing each attack.
 
 
 
-\paragraph{Parallelism and memory behavior in GPU.} 
-Threads are organized into blocks, and blocks are grouped into grids. 
+\paragraph{Parallelism and Memory Behavior in GPU.}
+\stefan{I'm not sure how much of this is CUDA-specific. How early in the proposal do we want to specialize to CUDA?}
+Threads on a GPU (of which there may be thousands) are organized into groups
+called warps.
+%
+We will use the identifier \texttt{warpsize} to refer to the number of threads
+per warp, which is~32 on all implementations of which we're aware.
+%
+Warps are organized into blocks, and blocks are grouped into grids. The dimensions of blocks and grids are specified when the kernel is launched.
 %
 Each thread has a unique thread ID within its block, and each block has a unique block ID within the grid, enabling scalable parallel execution.
 %
@@ -113,27 +120,23 @@ Shared memory is a smaller, but faster, memory space accessible to all threads w
 %
 Global memory is the largest memory space, accessible by all threads across different blocks, but it is much slower compared to registers and shared memory.
 
-\paragraph{shared memory and bank conflicts.}
+\paragraph{Shared Memory and Bank Conflicts.}
 Shared memory, like other types of memory, must be loaded into registers before operations can be performed on it.
 %
-Threads within a warp make simultaneous requests to shared memory, following a pattern of 32 distinct addresses.
+Because all active threads within a warp perform the same instruction simultaneously, they will all perform simultaneous requests to shared memory, but potentially from different addresses.
 %
-Each thread can request a different address, and if possible, all 32 threads will receive their data simultaneously.
+Memory locations in shared memory are assigned to~32 ``banks'' in hardware.
 %
-Shared memory is divided into four-byte words.
+Each bank can retrieve or store to only one address at a time.
 %
-Each four-byte word can store various types of data, such as a 32-bit integer, a floating-point number, half a double-precision float, or two short integers.
-%
-These words are allocated to one of 32 banks, which handle reading and writing data to and from the registers.
-%
-Each bank can serve only one word to a warp at a time.
 All 32 banks can simultaneously deliver words to all 32 threads of a warp quickly, provided that each bank is requested for only one word.
 %
-When multiple words are requested from the same bank by different threads within a warp, a bank conflict occurs, causing the bank to access the words sequentially.
+When multiple words are requested from the same bank by different threads within a warp, a {\em bank conflict} occurs, causing the bank to access the words sequentially.
 %
-If all threads of a warp access the same word from shared memory, a broadcast operation takes place, where the memory is read once and the value is distributed to all threads. 
+In the worst case, all 32 threads would read from different addresses within the same bank, and 32 sequential memory accesses would be performed.
+%If all threads of a warp access the same word from shared memory, a broadcast operation takes place, where the memory is read once and the value is distributed to all threads. 
 %
-This operation is as fast as conflict-free access to every bank.
+%This operation is as fast as conflict-free access to every bank.
 
 \paragraph{Global memory and L1/L2 cache.}
 \farzaneh{From NVIDIA:
@@ -142,16 +145,11 @@ using the generic data path) are serviced with 32-byte memory transactions. Cach
 
 
 \paragraph{Thrust 1. Passive attacks}
-The attack exploits the relationship between
-the time for accessing the memory and the index.
+In Thrust 1, we consider passive attacks that exploit the correlation between memory access patterns (and thus, indices accessed) and access time.
 %
-In this attack, the attacker does not interfere with the victim process.
+In this attack, the attacker does not interfere with the victim process but is a passive observer who observes the computation time. 
 %
-The attacker is a passive observer that observes the computation time. 
-%
-From the computation time it can deduce the index for accessing an array stroed in shared memory and global memory.
-%
-Since the index can invoke bank conflicts, or different access to L1/L2 cache. 
+From the computation time, the attacker can deduce the index used for accessing an array stored in shared memory or global memory, since the indices used can trigger bank conflicts, or different access to L1/L2 cache. 
 %
 See Figure~\ref{fig:th1-attack}.
 \farzaneh{Talk about related work on correlating timing attacks}
@@ -162,12 +160,10 @@ See Figure~\ref{fig:th1-attack}.
     \end{figure}
 
 \paragraph{Thrust 2. Active attacks}
-The attacker has its own process in the cloud (as a client) which coexists with the victim process.
+In the attacks we consider in Thrust 2, the attacker has their own process in the cloud (as a client) which coexists with the victim process.
 %
-Te victim and attacker both use the GPU server on the cloud.
+The victim and attacker both use the GPU server on the cloud and, through leaks caused by reuse of the registers and memory locations between processes, can gain access to the contents of the victim process's address space.
 %
-The attacker can gets its hand on the memory contents created by the victim process.
-
 See Figure~\ref{fig:th2-attack}
 
 \begin{figure}[h]
@@ -187,7 +183,14 @@ In the second thrust we consider offensive attacks.
 %
 We consider the unique parallelism paradigm in GPU as well as its memory behavior.
 
-\paragraph{Related work. Type system for MiniCuda.}
+\paragraph{Related work on Modeling Execution Cost of CUDA.}
+In prior NSF-supported work~\citep{MullerHo21}, PI Muller and his collaborator Jan Hoffmann developed MiniCUDA, a core calculus for CUDA with a formal dynamic semantics modelling the execution behavior of CUDA kernels on GPUs, including its cost of execution, taking into account factors such as bank conflicts and coalescing of global memory accesses.
+%
+The work also included a quantitative program logic for predicting the execution cost of a MiniCUDA kernel in terms of a provided {\em resource metric}, which can count any desired combination of bank conflicts, global memory transactions, and other features.
+%
+We plan to use MiniCUDA as the basis of our language model, and the semantics and quantitative program logic as a starting point for proving the soundness of our type system: our type system should guarantee that two runs of the kernel on states that differ only in high-security memory locations shouldn't differ in their observable execution behavior, including cost.
+%
+Muller and Hoffmann's implementation of the quantitative program logic, called RaCUDA, can also serve as a starting point for our implementation of the type system.
 
 \paragraph{Related works on GPU security.}
 (With a microbenchmark they measured the

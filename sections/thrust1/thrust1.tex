@@ -1,26 +1,28 @@
 \subsection{Motivating Example: AES encryption algorithm.}
 
+\stefan{I think this example can be trimmed quite a bit. Do you want me to give it a try?}
+
 % We consider a table-based AES encryption algorithm as an example.
 %
 Advanced Encryption Standard (AES) is one of the most popular encryption algorithms.
 %
 Given a cipher key, the AES algorithm applies iterative rounds of transformations  to encrypt a confidential input (plaintext) such as passwords and private messages into the ciphertext.
 %
-The iterative transformations are done sequentially, with the same set of commands, except the last round which is slightly different. 
+The iterative transformations are done sequentially, with the same set of commands, except the last round, which is slightly different. 
 %
-Each round also transforms the cipher key based on a key schedule so we call the key for each round, the round key. 
+Each round also transforms the cipher key based on a key schedule; we use the term {\em round key} to refer to the key for each round.
 %
-AES is symmetric-key meaning that the same key used in the decryption, i.e., anyone who knows the cipher key can deduce the confidential plaintext from the cipher text. 
+AES is a symmetric-key algorithm, meaning that the same key used in the decryption, i.e., anyone who knows the cipher key can deduce the confidential plaintext from the cipher text. 
 %
-the same key is used to decrypt the ciphertext back to the original plaintext.
+The same key is used to decrypt the ciphertext back to the original plaintext.
 
 AES is a block cipher algorithm that works on fixed-sized blocks of 128 bits.
 %
-It means that the transformations apply on fixed-sized blocks of 128 bits.
+This means that the transformations apply on fixed-sized blocks of 128 bits.
 %
 Each block of the plaintext is encrypted separately.
 %
-The block is a 4 x 4 two-dimential array which we call the input state and is transformed into another 4 x 4 array  which we call the round output state.
+The block is a 4 x 4 two-dimentional array which we call the input state and is transformed into another 4 x 4 array  which we call the round output state.
 %
 The output state of one round will be the input state of the next round.
 %
