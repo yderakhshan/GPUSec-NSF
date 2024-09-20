@@ -102,3 +102,26 @@
 %% \renewcommand{\thetasklabel}{\arabic{subsection}-\thetasknmbr}
 %% \newenvironment{task}{\begin{list}{\textbf{Task \thetasklabel}:}{\usecounter{tasklabel}\stepcounter{tasknmbr}\setlength{\labelwidth}{\widthof{\textbf{Task X-X}}}\setlength{\leftmargin}{5em}\item\em}}{\\[-7pt]\end{list}}
 
+%%% IFC system
+
+\newcommand{\kw}[1]{\ensuremath{\mathsf{#1}}}
+\newcommand{\kwif}[3]{\ensuremath{\kw{if}~#1~\kw{then}~#2~\kw{else}~#3~\kw{fi}}}
+\newcommand{\kwwhile}[2]{\ensuremath{\kw{while}~#1~\kw{do}~#2~\kw{od}}}
+\newcommand{\securitytype}[2]{\ensuremath{#1_#2}}
+\newcommand{\Rule}[4][]{\ensuremath{\inferrule*[right={(#2)},#1]{#3}{#4}}}
+\newcommand{\pair}[2]{\ensuremath{\langle #1, #2 \rangle}}
+\newcommand{\suffix}[2]{{#1}_{#2}}
+
+\newcommand{\typed}[4]{\ensuremath{#1, #2 \vdash #3 : #4}}
+\newcommand{\typednotype}[3]{\ensuremath{#1, #2 \vdash #3}}
+
+\newcommand{\kwarr}[2]{#1 \rightarrow #2}
+\newcommand{\kwprod}[2]{#1 \times #2}
+\newcommand{\kwseq}[2]{\ensuremath{#1 ; #2}}
+
+\newcommand{\Type}[1]{\ensuremath{~\mathsf{Type(#1)}}}
+\newcommand{\unif}{\ensuremath{~\mathsf{unif}}}
+\newcommand{\diverge}{\ensuremath{~\mathsf{div}}}
+\newcommand{\slsingle}{\ensuremath{~\mathsf{l}}}
+\newcommand{\slmultiple}[2]{\ensuremath{~\mathsf{{#1}_{#2}}}}
+\newcommand{\pc}{\ensuremath{~\mathsf{pc}}}

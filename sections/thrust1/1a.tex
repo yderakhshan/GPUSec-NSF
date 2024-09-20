@@ -1,14 +1,30 @@
-\subsubsection{Task 1.a.} \farzaneh{What we have developed so far with Godha.
-With focus on bank conflicts, but general enough to all sorts of costs.}
-This proposed tasks consists of two main contributions, first we will develop an information flow control (IFC) type system that ensures secure flow of information considering the timing attack.
+\subsubsection{Task 1.a. Information Flow Control Type System for GPU Timing Attacks}
+
+This proposed task consists of two main contributions.
 %
-This would be a static type system.
+First we will develop an information flow control (IFC) type system that ensures noninterference, even up to timing attacks that observe aspects such as bank conflicts and shared memory accesses.
 %
-Next, we develop a resource-aware (?) Relational Hoare Logic as a semantic typing for IFC (?). 
+At key points, for example at a conditional where the condition depends on high-security information, the type system must ensure that the execution costs (e.g., bank conflicts, memory accesses) of the two branches are identical.
 %
+It does this by ``calling out'' to the second contribution of this task,
+a resource-aware Relational Hoare Logic~\cite{Relcost} for quantitatively bounding the difference in execution cost between two evaluation of a statement or expression (e.g., that differ only on high-security inputs).
+%
+
 \farzaneh{Put more here based on Amal and Jan's RHL.}
 
 \paragraph{IFC type system.}
+Information flow control (IFC) type systems typically extend conventional type systems by tracking the security level of variables in addition to their data types.
+%
+In doing so, the type system can, for example, restrict assignments that would
+cause high-security information to flow to a low-security variable.
+%
+As an example, our typing judgment for CUDA statements~$s$ is
+$\Sigma, \pc \vdash s$,
+where~$\Sigma$ is a context providing the types of constants and variables,
+and $\pc$ is the security level of the program counter, which makes the type
+system flow-sensitive by indicating whether the control flow of the program
+has been influenced by high-security information.
+
 
 \paragraph{Resource-aware evaluation rules.}
 
