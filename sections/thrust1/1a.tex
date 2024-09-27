@@ -1,16 +1,113 @@
 \subsubsection{Task 1.a. Information Flow Control Type System for GPU Timing Attacks}
 
-This proposed task consists of two main contributions.
+Our goal in this task is to statically ensure information security of GPU kernels, and in particular their invulnerability to timing attacks.
 %
-First we will develop an information flow control (IFC) type system that ensures noninterference, even up to timing attacks that observe aspects such as bank conflicts and shared memory accesses.
+Our security condition in this task will be {\em cost-sensitive noninterference} \stefan{Is there an existing term for this?} for individual GPU kernels.
+%
+We define this condition as follows: assign a {\em security level} to every local variable and array in a kernel indicating the secrecy of its contents---for example purposes, we will consider security levels High (high secrecy) and $\bot$ or Low (not secret), but the techniques apply to general lattices of security levels.
+%
+Consider two executions of a program, starting with memories that agree on variables of security level less than~$\seclevel$ but may differ on higher-security variables.
+%
+We call such starting points {\em low-equivalent} states.
+%
+Cost-sensitive noninterference at a security level~$\seclevel$ requires that two executions of a program, starting with low-equivalent states, are indistinguishable in their input-output behavior, effect on low-security memory locations, and observable cost behavior.
+%
+For most of the examples in this proposal, ``observable cost behavior'' means number of bank conflicts, but in our proposed work, we plan for this to also include number of memory transactions and other performance characteristics closely tied to program data.
+
+In this task, we ensure cost-sensitive noninterference through two main mechanisms.
+%
+First, we develop a resource-aware Relational Hoare Logic for quantitatively bounding the difference in execution cost between two evaluation of a statement or expression (e.g., that differ only on high-security memory locatins).
+%
+This logic is sufficient to ensure noninterference and is quite powerful in specifying fine-grained policies.
+%
+However, it suffers from the same drawbacks as program logics in general: they are often not decidable and require significant human interaction and/or advanced heuristics to prove complex properties such as noninterference.
+%
+To complement these drawbacks, we will develop an information flow control (IFC) type system that tracks security levels of expressions and statements throughout the program and disallows operations that might violate cost-sensitive noninterference.
 %
 At key points, for example at a conditional where the condition depends on high-security information, the type system must ensure that the execution costs (e.g., bank conflicts, memory accesses) of the two branches are identical.
 %
-It does this by ``calling out'' to the second contribution of this task,
-a resource-aware Relational Hoare Logic~\cite{Relcost} for quantitatively bounding the difference in execution cost between two evaluation of a statement or expression (e.g., that differ only on high-security inputs).
+It does this by ``calling out'' to the Relational Hoare Logic.
 %
+Uses of the more general logic are therefore localized, reducing the burden on programmers and analysis tools.
+
+We show the soundness of our approach in two steps.
+%
+First, we show that the Relational Hoare Logic is sound with respect to an operational model of GPU execution.
+%
+As the model, we plan to use the operational semantics of MiniCUDA~\cite{MullerHo21}, which also track abstract execution cost including bank conflicts and memory accesses.
+%
+Second, we will show the type system sound with respect to the Relational Hoare Logic, i.e., a well-typed program is related to itself in that any two executions with low-equivalent starting states have the same cost and observable behavior.
 
 \farzaneh{Put more here based on Amal and Jan's RHL.}
+
+A key difficulty in analyzing GPU programs, as opposed to CPU programs, is that each thread maintains a separate copy of local variables.
+%
+This fact can be used to leak information in non-obvious ways.
+%
+For example, consider the following program in which~\lstinline{h} is a high-security local variable,~\lstinline{S} is an array stored in shared memory, and~\lstinline{threadIdx} is the integer thread identifier of each thread.
+
+\begin{lstlisting}
+if (h) {
+  S[2 * threadIdx] = 0;
+} else {
+  S[2 * threadIdx] = 0;
+}
+\end{lstlisting}
+
+Naively, it would appear that, although this program conditions on the high-security variable~\lstinline{h}, doing so can't leak information because the code in both branches is identical and the shared memory access uses only low-security indices (\lstinline{threadIdx} is considered low-security).
+%
+However, the program does indeed leak information.
+%
+Consider an execution in which threads $0--15$ take the ``then'' branch and threads $16--31$ take the ``else'' branch.
+%
+In this case, neither branch has a bank conflict, and nor does the program as a whole because the two branches are executed in sequence.
+%
+On the other hand, consider an execution in which even-number threads take the ``then'' branch and odd-number threads take the ``else'' branch.
+%
+In this case, both branches have a bank conflict.
+%
+The leak here is due to the fact that {\em which threads are active} during each branch impacts cost behavior, and this in turn is determined by high-secrecy information.
+%
+
+Because GPU programs generally have thousands of threads, reasoning about the local state of individual threads quickly becomes intractable.
+%
+Muller and Hoffmann~\cite{MullerHo21} observe that a useful middle ground is to instead track which variables are {\em uniform} across all threads and reason precisely only about the local state of these variables.
+%
+From a cost perspective, this is sufficient in many real-world GPU programs because variables, such as loop indices, that impact cost are generally uniform.
+%
+We hypothesize that this approximation is useful in a security context as well.
+%
+For example, in determining that the above program has an information leak, it suffices to know {\em whether}~\lstinline{h} is uniform, because the leak stems from the fact that it may be divergent (i.e., not uniform).
+\stefan{Move this example to an earlier section?}
+
+\paragraph{Resource aware - Relational Hoare Logic.}
+The judgment for our resource-aware Relational Hoare Logic will be of the form 
+%
+\[\{\Phi; Q; X\} p_1 \sim p_2 \{\Phi'; Q'; X'\}\]
+%
+where $p_1$ and $p_2$ are programs the we want to relate (they may be the same program, in which case we relate two executions).%
+$\Phi$ is a logical precondition that describes the relation between the two states before running programs $p_1$ and $p_2$. 
+%
+$Q$ is a {\em potential function} mapping program states to rational numbers.
+%
+Such a function is familiar from the potential or ``physicist's'' method of amortized analysis, where certain operations accrue potential (analogous to potential energy in physics) in the program state that can then be used to amortize the cost of periodic expensive operations.
+%
+Our Relational Hoare Logic utilizes a non-standard interpretation of the potential function: the potential actually pays for the {\em difference} between the two execution costs.
+%
+If the two programs evaluate in lockstep, performing identical memory transactions and other observable operations, no cost is accrued.
+%
+$X$ is
+%
+$\Phi'$ is the precondition that describe the relation between the two states after running programs $p_1$ and $p_2$.
+%
+$Q'$
+%
+$X'$
+
+We will need two forms of rules, synchronized and unscynchronized:
+\[
+\infer[]{ \Phi \Rightarrow \mathtt{diff\_conflicts}(o_1,o_2) \le n\\  \Phi \vdash e_1 \sim e_2 : m}{\{\Phi; Q+n+m; X\} S_1[o_1] \leftarrow e_1 \sim S_2[o_2] \leftarrow e_2 \{\Phi; Q; X\}  }
+\]
 
 \paragraph{IFC type system.}
 Information flow control (IFC) type systems typically extend conventional type systems by tracking the security level of variables in addition to their data types.
@@ -28,28 +125,7 @@ has been influenced by high-security information.
 
 \paragraph{Resource-aware evaluation rules.}
 
-\paragraph{Resource aware - Relational Hoare Logic.}
-The judgment will be of the form 
-%
-\[\{\Phi; Q; X\} p_1 \sim p_2 \{\Phi'; Q'; X'\}\]
-%
-where $p_1$ and $p_2$ are programs the we want to relate.%
-$\Phi$ is the precondition that describes the relation between the two states before running programs $p_1$ and $p_2$. 
-%
-$Q$ is
-%
-$X$ is
-%
-$\Phi'$ is the precondition that describe the relation between the two states after running programs $p_1$ and $p_2$.
-%
-$Q'$
-%
-$X'$
 
-We will need two forms of rules, synchronized and unscynchronized:
-\[
-\infer[]{ \Phi \Rightarrow \mathtt{diff\_conflicts}(o_1,o_2) \le n\\  \Phi \vdash e_1 \sim e_2 : m}{\{\Phi; Q+n+m; X\} S_1[o_1] \leftarrow e_1 \sim S_2[o_2] \leftarrow e_2 \{\Phi; Q; X\}  }
-\]
 
 % Explain the type system.
 % Relational Hoare Logic
