@@ -86,9 +86,9 @@ The judgment for our resource-aware Relational Hoare Logic will be of the form
 \[\{\Phi; Q; X\} p_1 \sim p_2 \{\Phi'; Q'; X'\}\]
 %
 where $p_1$ and $p_2$ are programs the we want to relate (they may be the same program, in which case we relate two executions).%
-$\Phi$ is a logical precondition that describes the relation between the two states before running programs $p_1$ and $p_2$. 
+The logical preconditon $\Phi$  describes the relation between the two states before running programs $p_1$ and $p_2$. 
 %
-$Q$ is a {\em potential function} mapping program states to rational numbers.
+The {\em potential function} $Q$ maps program states to rational numbers.
 %
 Such a function is familiar from the potential or ``physicist's'' method of amortized analysis, where certain operations accrue potential (analogous to potential energy in physics) in the program state that can then be used to amortize the cost of periodic expensive operations.
 %
@@ -96,20 +96,72 @@ Our Relational Hoare Logic utilizes a non-standard interpretation of the potenti
 %
 If the two programs evaluate in lockstep, performing identical memory transactions and other observable operations, no cost is accrued.
 %
-$X$ is
+As discussed earlier \stefan{keep track of where}, we only want to reason about the values of variables that are known to be uniform across all threads; this means that only the states of such variables are included in~$Q$.
 %
-$\Phi'$ is the precondition that describe the relation between the two states after running programs $p_1$ and $p_2$.
+We keep track of these variables using the third component of the precondition, $X$, which is itself a pair $(X_1, X_2)$ of sets of variables.
 %
-$Q'$
+Sets~$X_1$ and~$X_2$ contain the variables known to be uniform before executing~$p_1$ and~$p_2$, respectively.
 %
-$X'$
+Moving to the postcondition, $\Phi'$ describes the relation between the two states after running programs $p_1$ and $p_2$; $Q'$ is a potential function for the remaining potential after paying for any differences in cost between $p_1$ and $p_2$, and $X'$ contains the sets of uniform variables in the two executions after executing the two statements.
 
-We will need two forms of rules, synchronized and unscynchronized:
+We will need two forms of rules, {\em synchronous} and {\em unscynchronous}.
+%
+The synchronous rules relate two executions of the same form of statement;
+for example, here is the rule that relates two assignments to shared memory. 
 \[
-\infer[]{ \Phi \Rightarrow \mathtt{diff\_conflicts}(o_1,o_2) \le n\\  \Phi \vdash e_1 \sim e_2 : m}{\{\Phi; Q+n+m; X\} S_1[o_1] \leftarrow e_1 \sim S_2[o_2] \leftarrow e_2 \{\Phi; Q; X\}  }
+\infer[]{ \Phi[e_1/S_1[o_1]][e_2/S_2[o_2]] \Rightarrow \mathtt{diff\_conflicts}(o_1,o_2) \le n\\  \Phi \vdash e_1 \sim e_2 : m}{\{\Phi; Q+n+m; X\} S_1[o_1] \leftarrow e_1 \sim S_2[o_2] \leftarrow e_2 \{\Phi; Q; X\}  }
 \]
+The premise~$\Phi \Rightarrow \mathtt{diff\_conflicts}(o_1,o_2) \le n$ indicates that, under the logical conditions in~$\Phi$, it is possible to reason that the difference in the number of bank conflicts between the two indices~$o_1$ and~$o_2$ is less than~$n$.
+%
+For example, if~$\Phi$ guarantees that~$o_1 = o_2$, then we can conclude~$ \mathtt{diff\_conflicts}(o_1,o_2) = 0$.
+%
+The auxiliary judgment~$\Phi \vdash e_1 \sim e_2 : m$ states that the difference in the number of bank conflicts triggered by~$e_1$ and~$e_2$ is bounded by~$m$.
+%
+The rules for this judgment mainly relate shared memory accesses in subexpressions of~$e_1$ and~$e_2$ using~$\mathit{diff\_conflicts}$.
+%
+In the conclusion of the rule, the main change between the pre- and post-conditions is a cost of~$n + m$ to pay for the maximum possible difference in bank conflicts between the two programs.
+%
+We also include the information about the assignment in~$\Phi$ by substituting the assigned expressions for the target locations in the precondition, as is standard in Hoare Logic.
+
+The asynchronous rules relate two different forms of statements, and are necessary for, e.g., relating the two branches of a conditional to guarantee that the choice of branch can't leak information through timing channels.
+
+We prove soundness of the Relational Hoare Logic by comparing it to the cost-annotated operational model of CUDA execution developed by Muller and Hoffmann~\cite{MullerHo21}.
+%
+The operational semantics judgment is~$\sigma; p \Downarrow^{\mathcal{T}}_m \sigma'; n$.
+%
+In this judgment,~$\sigma$ and~$\sigma'$ are {\em states}, i.e., the values of local variables and arrays, before and after execution.
+%
+We write~$\Phi \vdash (\sigma_1, \sigma_2)$ to mean that a pair of states satisfies a condition~$\Phi$ in that the states and the relation between them satisfy all of the logical conditions specified in~$\Phi$.
+%
+The program~$p$ executes with the set~$\mathcal{T}$ of active threads (this may be a subset of all threads if warps have diverged).
+%
+The judgment also indicates the cost~$n$ of execution in units specified by a {\em resource metric}~$m$, which assigns costs to program operations and conditions---in our example, we would use a resource metric that assigns a cost of~$m$ to an~$m$-way bank conflict and a cost of zero to all other operations.
+%
+The soundness theorem for the logic states that, if we execute~$p_1$ and~$p_2$ starting with states that satisfy~$\Phi$, the difference in potential predicted by the logic overestimates the actual cost difference between the two executions:
+
+\begin{theorem}[Soundness of Relational Hoare Logic]
+If~$\Phi \vdash (\sigma_1, \sigma_2)$ and
+$\{\Phi, Q, \{\}\} p_1 \sim p_2 \{\Phi', Q', X'\}$
+and $\sigma_1; p_1 \Downarrow^{\mathcal{T}}_m \sigma_1'; n_1$
+and $\sigma_2; p_2 \Downarrow^{\mathcal{T}}_m \sigma_2'; n_2$
+then $|n_1 - n_2| \leq Q(\sigma_1, \sigma_2) - Q'(\sigma'_1, \sigma_2')$.
+\end{thorem}
+
 
 \paragraph{IFC type system.}
+The Relational Hoare Logic described above is sufficient to guarantee noninterferece.
+%
+We can guarantee that a program~$p$ satisfies noninterference by requiring the
+provability of the triple
+\[\{\Phi; 0; \{\}\} p \sim p \{\Phi'; 0; \{\}\}\]
+where~$\Phi$ is a condition that requires only that the two initial states be low-equivalent.
+%
+The soundness theorem guarantees that if the triple is provable, then the two executions of~$p$ do not differ in their resource usage.
+%
+However, proving such a triple may be quite cumbersome and there is no guarantee that doing so would be possible without substantial human effort.
+%
+We therefore develop a more conservative, but simpler and decidable, type system.
+
 Information flow control (IFC) type systems typically extend conventional type systems by tracking the security level of variables in addition to their data types.
 %
 In doing so, the type system can, for example, restrict assignments that would
