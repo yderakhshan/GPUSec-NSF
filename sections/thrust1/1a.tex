@@ -167,12 +167,106 @@ Information flow control (IFC) type systems typically extend conventional type s
 In doing so, the type system can, for example, restrict assignments that would
 cause high-security information to flow to a low-security variable.
 %
-As an example, our typing judgment for CUDA statements~$s$ is
+In CUDA, we need to track not just the security level of variables and
+expressions but also
+whether or not they are uniform across threads, because conditioning on
+non-uniform expressions can cause leaks, as shown in \stefan{Example}.
+%
+Types in our type system are~$\tau_{\lpair{\seclevel}{\divergence}}$
+where~$\tau$ is a standard data type such as $\mathsf{int}$, and
+$\seclevel$ is a security level (we will use~$\bot$ for low-security and~$\top$
+for high security; in general these can be values from an arbitrary security
+lattice).
+%
+The component~$\divergence$ is either~$\dunif$ meaning ``uniform across
+threads'' or~$\ddiv$ meaning ``possibly divergent (non-uniform) across threads.''
+%
+We can also treat pairs~$\lpair{\seclevel}{\divergence}$ as elements~$P$ of a
+single lattice formed by taking the Cartesian product of the security
+lattice with $\{\ddiv, \dunif\}$ and extending the join and ordering operators
+in the natural way (uniform values may flow to non-uniform variables but not
+vice versa).
+
+Our typing judgment for CUDA statements~$s$ is
 $\Sigma, \pc \vdash s$,
 where~$\Sigma$ is a context providing the types of constants and variables,
 and $\pc$ is the security level of the program counter, which makes the type
 system flow-sensitive by indicating whether the control flow of the program
 has been influenced by high-security information.
+
+
+As an example, a general rule for assignments to shared memory might be:
+\[
+\infer[]
+{ \Sigma(S) = \mathsf{arr}(\tau)_{\lpair{\seclevel_S}{\divergence_S}}\\
+\Sigma, \pc \vdash o : \mathsf{int}_{\lpair{\bot}{\divergence_o}}\\
+\Sigma, \pc \vdash e : \tau_{\lpair{\seclevel_e}{\divergence_e}}\\
+(\pc \ljoin \seclevel_e) \secle \seclevel_S
+}
+{
+\Sigma, \pc \vdash S[o] \leftarrow e
+}
+\]
+The assignment is permitted as long as 1) the array index~$o$ is public
+(since using a secret index could leak information through the number of
+bank conflicts)
+and 2) the security level of array~$S$ is at least as high as the
+join of~$\pc$ and the security level of~$e$.
+%
+Clearly~$\seclevel_S$ must be higher than~$\seclevel_e$ as we are writing~$e$
+into~$S$.
+%
+Using the level of the program counter prevents so-called {\em indirect flows}
+such as this one, which also writes the value of the boolean~$b$ into~$S[0]$:
+\begin{lstlisting}[language=C]
+if (b) S[0] = 1;
+else S[0] = 0;
+\end{lstlisting}
+
+Note that writing to shared memory when the program counter is impacted by
+secret information is allowed; disallowing this would be safe, but unnecessarily
+restrictive.
+%
+Instead, we prevent indirect leaks through bank conflicts with the rules
+for \texttt{if}.
+
+When conditioning on public information, it suffices to check that both
+branches are well-typed:
+\[
+\infer[]
+{\Sigma, \pc \vdash e : \mathsf{bool}_{\lpair{\bot}{\divergence_e}}\\
+\Sigma, \pc \vdash s_1\\
+\Sigma, \pc \vdash s_2
+}
+{\Sigma, \pc \vdash \mathsf{if}~e~\mathsf{then}~s_1~\mathsf{else}~s_2}
+\]
+Note that both branches are typed under~$\pc$ because conditioning on
+public information does not increase the secrecy level of the program counter.
+
+However, when conditioning on a secret, we need to ensure that no information
+can be leaked through differences in the number of bank conflicts between the
+two branches {\em or} through differences in the number of bank conflicts in
+one branch that might result from differing sets of threads taking that
+branch (see \stefan{Example}).
+%
+The type system lacks the precision to quantify the number of bank conflicts
+and so, at this point, it is necessary to use the Quantitative Hoare Logic:
+\[
+\infer[]
+{\Sigma, \pc \vdash e : \mathsf{bool}_{\lpair{\seclevel_e}{\divergence_e}}\\
+\Sigma, (\pc \ljoin \seclevel_e) \vdash s_1\\
+\Sigma, (\pc \ljoin \seclevel_e) \vdash s_2\\
+\{\Phi; 0; \{\}\} s_1 \sim s_1 \{\Phi'; 0; \{\}\}\\
+\{\Phi; 0; \{\}\} s_2 \sim s_2 \{\Phi'; 0; \{\}\}\\
+\{\Phi; 0; \{\}\} s_1 \sim s_2 \{\Phi'; 0; \{\}\}\\
+}
+{\Sigma, \pc \vdash \mathsf{if}~e~\mathsf{then}~s_1~\mathsf{else}~s_2}
+\]
+We require that the number of bank conflicts in both branches is
+unaffected by the set of active threads by relating each branch to itself,
+and we require that the two branches have the same number of bank conflicts
+under any differences in secret information by relating them to each other.
+
 
 
 \paragraph{Resource-aware evaluation rules.}
