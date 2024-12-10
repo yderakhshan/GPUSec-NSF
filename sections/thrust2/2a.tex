@@ -1,4 +1,58 @@
-\subsection{Task 2.a.} 
+\subsubsection{Task 2.a.} 
+For the global memory, even after they are done, mallocfree will not save it.  When allocated statically it is not clear what is going to allocated and it is  dynamic choice.
+This is a place where a dynamic tainting comes in.
+one way to do it is to keep the security high as is even after mallocfree, but this will be restrictive. as they remain tainted.
 
 Assuring security in the presence of context switching between programs of GPU
-Taint tracking analysis for the source language and enforcing (assuming?) a dynamic monitor at the hardware level
+Taint tracking analysis for the source language and modeling a dynamic monitor at the hardware level.
+
+We first describe how dynamic taint analysis
+is implemented by monitoring the execution of a program.
+
+Taint policy actions, whether it be taint propagation, introduction,
+or checking, are added to the operational semantics rules.
+
+We redefine values in our language to be tuples of the form $\langle v, \tau \rangle$ where v is a value in the initial language, and $\tau$ is the taint status of $v$. 
+$\Delta_\tau$ keeps track of the taint status of
+scalar variables. $\mu_\tau$ keeps track of the taint status of memory cells. 
+At the beginning they are initialized so that all values are marked
+untainted. keep the taint status for all
+variables and memory cells, and are used to derive the taint
+status for all values during execution.
+
+A taint policy specifies three properties: how new taint is
+introduced to a program, how taint propagates as instructions
+execute, and how taint is checked during execution
+A taint policy will also typically
+distinguish between different input sources.
+For example, an
+internet-facing network input source may always introduce
+taint, while a file descriptor that reads from a trusted
+configuration file may not.
+\farzaneh{We can ask the cloud client to provide the level of security of their data and tell us which parts they want to keep secure.}
+Taint propagation rules specify the taint
+status for data derived from tainted or untainted operands.
+Since taint is a bit, propositional logic is usually used to
+express the propagation policy, e
+
+Taint Checking. Taint status values are often used to
+determine the runtime behavior of a program, e.g., an attack
+detector may halt execution if a jump target address is
+tainted. , we perform checking by adding the
+policy to the premise of the operational semantics
+
+
+Any program value whose computation depends on data derived from a taint source is considered tainted. A taint policy P determines exactly how taint flows as a program executes, what sorts of operations introduce new taint, and
+what checks are performed on tainted values.
+
+Two types of errors can occur in dynamic taint analysis.
+First, dynamic taint analysis can mark a value as tainted
+when it is not derived from a taint source. We say that such
+a value is overtainted. For example, in an attack detection
+application overtainting will typically result in reporting
+an attack when no attack occurred. Second, dynamic taint
+analysis can miss the information flow from a source to a
+sink, which we call undertainting. In the attack detection
+scenario, undertainting means the system missed a real
+attack. A dynamic taint analysis system is precise if no
+undertainting or overtainting occurs.
