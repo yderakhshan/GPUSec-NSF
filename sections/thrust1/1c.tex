@@ -1,2 +1,73 @@
-\subsubsection{Task 1.c} Implementation of the type system.
-Formalizing the proofs.
+\subsubsection{Task 1.c}
+In the third subtask of Thrust 1, we plan to implement the ideas of Tasks 1.a
+and 1.b in a program analysis tool based on RaCUDA.
+%
+Because in CUDA, like C/C++, all variables are declared with their types, the
+implementation of the type system is a relatively straightforward type checker,
+with no inference necessary.
+%
+We will extend the syntax of the source language
+to allow data types to be annotated with
+security levels, so that programmers can indicate which variables and
+function arguments should be considered high-security.~\footnote{As an
+alternative, we could assign security levels to input channels, e.g.,
+\texttt{stdin}, the command line, and different files, and propagate these
+security levels to variables.}
+%
+The implementation challenge will be in implementing the relational
+Hoare logic, which is used at certain points in the type system, on top of
+the quantitative logic implemented by RaCUDA.
+
+As a prelude to describing our extensions to implement the relational logic,
+we give a bit of background on the design of RaCUDA.
+%
+RaCUDA is built on an earlier tool, Absynth, which accepts code in a simple
+IMP-like imperative intermediate representation, annotated with \texttt{tick}
+commands.
+%
+The statement~\texttt{tick}~$n$ for some integer~$n$ consumes~$n$ units of
+potential ($n$ may be negative, indicating that potential becomes available).
+%
+Absynth analyzes the IMP program to produce sound upper bounds on the total
+units of potential consumed by \texttt{tick}s on any run of a program.
+%
+It does this in three phases: it first performs an abstract interpretation
+to collect facts about variables corresponding to the~$\Phi$ of the Hoare
+logic rules.
+%
+Second, it applies the quantitative Hoare logic rules to build a set of
+constraints on how potential is converted and used throughout the program.
+%
+Third, this set of constraints is solved using an off-the-shelf linear
+program solver.
+%
+RaCUDA converts CUDA kernels to an extended version of Absynth's IMP
+representation: it adds AST nodes to indicate shared and global memory
+reads, which will correspond to different amounts of resource consumption
+depending on the particular access patterns.
+%
+RaCUDA also extends Absynth's abstract interpretation pass to collect
+CUDA-specific information.
+%
+During this pass, this information is used to convert the AST nodes
+corresponding to memory accesses into \texttt{tick}s that indicate the
+possible numbers of bank conflicts and global memory accesses (for example,
+if the abstract interpretation has determined that a variable~\texttt{x} is
+uniform across a warp, then~\texttt{S[x]} would not consume any resources).
+%
+The remainder of Absynth's analysis of the resource usage is unchanged.
+
+The key to implementing a relational logic on top of RaCUDA is therefore
+modifying the pass that assigns \texttt{tick}s to shared memory accesses
+(and other resource-consuming operations once we extend our analysis beyond
+bank conflicts).
+%
+Rather than assign a \texttt{tick} value corresponding to the maximum
+number of bank conflicts, the code at this point should assign a value
+corresponding to the \texttt{diff\_conflicts} function of our shared memory
+rules in the relational logic.
+%
+The implementation of \texttt{diff\_conflicts} will take into account the
+index expression and information about variables gained through abstract
+interpretation, as well as additional information about the thread mask
+which we will extend the abstract interpretation pass to track.

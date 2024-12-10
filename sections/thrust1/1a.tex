@@ -139,7 +139,7 @@ The judgment also indicates the cost~$n$ of execution in units specified by a {\
 %
 The soundness theorem for the logic states that, if we execute~$p_1$ and~$p_2$ starting with states that satisfy~$\Phi$, the difference in potential predicted by the logic overestimates the actual cost difference between the two executions:
 
-\begin{theorem}[Soundness of Relational Hoare Logic]
+\begin{theorem}[Soundness of Relational Hoare Logic]\label{thm:logic-sound}
 If~$\Phi \vdash (\sigma_1, \sigma_2)$ and
 $\{\Phi, Q, \{\}\} p_1 \sim p_2 \{\Phi', Q', X'\}$
 and $\sigma_1; p_1 \Downarrow^{\mathcal{T}}_m \sigma_1'; n_1$
@@ -267,9 +267,19 @@ unaffected by the set of active threads by relating each branch to itself,
 and we require that the two branches have the same number of bank conflicts
 under any differences in secret information by relating them to each other.
 
+We prove soundness of the IFC type system by showing that well-typed programs
+are related to themselves with empty starting potential.
+Composing this result with Theorem~\ref{thm:logic-sound} ensures that
+two runs
+of a well-typed program with low-equivalent starting configurations do not
+differ in the number of bank conflicts.
 
-
-\paragraph{Resource-aware evaluation rules.}
+\begin{theorem}[Soundness of Type System]
+If~$\Sigma, \bot \vdash p$
+and~$\Phi$ is any condition requiring that the two starting configurations
+be low-equivalent,
+then $\{\Phi, 0, \{\}\} p_1 \sim p_2 \{\Phi', 0, \{\}\}$.
+\end{theorem}
 
 
 
