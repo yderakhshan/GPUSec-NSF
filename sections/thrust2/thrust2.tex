@@ -1,33 +1,87 @@
 \subsection{Motivating Example}
-% Either the AES encryption algorithm (as in thrust 1) or an LLM example.
-\farzaneh{Raw text from previous work}
-We use the same AES encryption key example.
+\farzaneh{move to the intro if needed: GPU memory is split into several regions, onchip and off-chip. On-chip memory consists of registers,
+caches, and shared memory.
+Off-chip memory
+is GDDR SGRAM, which is logically distributed into
+texture memory, constant memory, local memory, and
+global memory.
+Both texture memory and constant memory are read-only during the GPU kernel execution. Local memory is private to each thread and thus does not play a role in any of the two attack models. Therefore, in this proposal we focus on registers, shared memory, and global memory.
+}
+\farzaneh{Merge the paragraph here or add to the first thrust:
+The victim sends its plaintext to the server through a secure channel that the attacker cannot observe.
+% 
+The server, then, uses a private cipher key to encrypt the plaintext into a ciphertext that is public and, therefore, visible to the attacker.
 %
-This time the attacker (adversary) coexists with the legitimate process on GPU, aka they share a GPU. (in comparison to the first thrust where the adversary could only observe the \# of bank conflicts or time passed or energy?)
+The attacker, using the same server for a different purpose, aims to get access to either the victim's plaintext or the cipher key used by the server;  accessing either of these would allow the attacker to decrypt the plaintext, as it can observe the public ciphertext.
+% 
+Even accessing a few words of plaintext or the cipher key is regarded as a security leak, as it allows the attacker to execute a faster brute-force attack on the remaining data.
+}
+
 %
-Moreover the adversary can read the ciphertext. (Similar to the first thrust.)
+The Multi-Process Service (MPS) is a software solution designed to efficiently manage multiple processes sharing a GPU allowing to run them concurrently~\cite{anasic2014CAN, NVDIA2013, li2011ICPP}.
 %
-There are two forms of leakages: plaintext leakage vs key leakage.
+% It is designed to enhance performance when a single application process underutilizes the GPU's compute capacity.
 %
-In the plaintext leakage, the attacker is successful by gaining access to the plaintext directly. 
+Processes sharing the GPU send their requests to the MPS, where these requests are queued and processed by the GPU using a FIFO scheduling policy.
+% 
+MPS is designed to enhance performance when a single application process underutilizes the GPU's compute capacity and thus the GPU is shared between multiple processes.
 %
-In the key leakage the attacker is successful by gaining access to \emph{some workds} of the encryption key. 
+However, one of its key limitations is that memory allocated by any of the client processes is accessible to all other client processes, which compromises memory isolation between them.
 %
-If the attacker gets access to all words of the encryption key, then they can infer the plaintext since they know the ciphertext.
-%
-But even accessing some words of the encryption key is also dreadful. 
-%
-The attacker can gain access to the rest by a brutforce (but quicker than when they didn't know all the words).
+% New requests can be accepted even while another application is currently executing a kernel on the GPU.
 
 
+In this thrust, we consider the scenario in which both the victim and attacker are clients of a shared GPU server (see Figure~\ref{fig:th2-attack}). 
+%
+If the attacker's application runs concurrently with the victim's, it can potentially access private information that is left on the GPU memory by the victim's application.
+%
+This potential leak occurs if the memory locations allocated to the attacker overlap with those used by the victim.
+%
+To achieve this, the attacker only needs to access the GPU memory through regular allocation, deallocation, and read/write operations without requiring any special privileges.
+%
+The details of the attack vary depending on whether the victim's information is located in the shared or global memory.
+%
+We describe the details using an example similar to Thrust 1, where the victim uses the GPU server to encrypt sensitive plaintext.
+
+\paragraph{Shared memory.}
+% Shared memory is available to the programmer, often treated as a software cache.
+%
+In this scenario, both the victim and the adversary client processes submit their requests to the MPS. 
+% 
+Let us assume that the scheduler executes the attacker's request immediately after the victim's, granting the attacker exclusive access to the GPU and its memory.
+% 
+In such a situation, the attacker could gain access to any data left by the victim in the shared memory. 
+% 
+For instance, if the victim stores an encryption key in the shared memory, the adversary can retrieve it.
+% 
+The key is that such interleaving may occur before the process exits, as determined by the scheduler. 
+% 
+As such, even if the programmer attempts to clear the memory before exiting, this interleaved access can still result in information leakage. 
+
+
+
+
+\paragraph{Global memory.}
+
+% 
+The main point is that in both form of these attacks, data persists after deallocation. CudaFree is not enough.
+For what concerns registers, a feature that could taint memory isolation is that registers can be used to access global memory as well: in fact, a GPU feature (named register
+spilling [Micikevicius 2011]) allows one to map a large number of kernel variables onto
+a small number of registers. When the GPU runs out of hardware registers, it can
+transparently leverage global memory instead.
+
+
+% Local
+% memory is thread-private, and is most commonly used
+% for register spilling. 
+% 
 With the attack in~\cite{}, we are able to leak only the final state of the previous GPU process. 
 %
 It is due to the exclusive access granted by the driver to host threads that access the GPU; only one cudaContext is
 allowed to access the GPU at a given time.
 %
 Sometimes the final state is of high confidentiallity: the decryption of a
-ciphertext, the output of a risk-analysis function or the Universal Transverse Mercator (UTM) locations of an oil
-well.
+ciphertext, the output of a risk-analysis function.
 %
 But sometimes the final state is of low confidentiality of public:
 encryption algorithm.
@@ -41,21 +95,65 @@ But the residues in the memory in the final state (side effects of the program).
 For example, if in the final state of an encryption algorithm, we still have the plaintext on the global memory, the attacker can get access to it.
 
 
-Using cudaHostAlloc is not more safe than cudaMalloc: it is fully vulnerable to information leakage as well.
-In fact, the CUDA Runtime copies the data to the GPU’s global memory on behalf of the programmer when it
-is more convenient.
-This is important since it shows that even code implemented by “experts” actually shows the
-same deficiencies as regards security. This finding, together with the others reported in the paper, call for solutions
-to this severe vulnerability.
 
 
-Most often the programmer does not have fine control over kernel code (e.g. if the kernel is the outcome of
-high-level programming environments such as JavaCL, Jcuda [22], etc);
-The kernel programmer usually aims at writing the fastest possible code without devoting time to address
-security/isolation issues that might hamper performance.
 
-So hardware/driver level measures are also needed?
 
+
+Global memory can be set and cleared through API
+functions, with overhead similar to that of running a GPU
+kernel, but local memory, shared memory, and registers
+are only accessible from within a kernel function, and allocated and deallocated by the driver. These three memory types can only be reliably cleared through instrumentation. Moreover, local memory and registers are
+managed by compilers and they can only be cleared by
+compile-time instrumentation.
+Sensitive information can also propagate to different data storage locations on GPU: memory, software
+caches, and registers. An example is the advanced encryption standard (AES), in which the key and the plain
+text to be encrypted may reside in different types of
+memory [25]. They can be stored in global memory as
+allocated data objects and in registers as program execution operands.
+Service (MPS), one application can peek into the memory of another application, documented in NVIDIA's
+MPS manual at Section 2.3.3.1, “An out-of-range read
+in a CUDA Kernel can access CUDA-accessible memory modified by another process, and will not trigger
+an error, leading to undefined behavior.” When two applications do not run simultaneously, in which case every application will get a serially scheduled time-slice
+on the whole GPU, information leaking is still possible. The second running application can read data left
+by the first running application if its allocated memory
+locations happen to overlap with those of the first one.
+This vulnerability has been detailed in several recent
+works. 
+
+
+
+% \farzaneh{rewrite and move to intro?}
+% The kernel programmer usually aims at writing the fastest possible code without devoting time to address security/isolation issues that might hamper performance.
+% In fact, the CUDA Runtime copies the data to the GPU's global memory on behalf of the programmer when it
+% is more convenient.
+% This is important since it shows that even code implemented by “experts” actually shows the
+% same deficiencies as regards security.
+%  This finding, together with the others reported in the paper, call for solutions
+% to this severe vulnerability.
+
+
+\subsection{Proposed work}
+
+The taintable sources are program inputs
+given by the users and reside in the global memory
+on GPUs. Examples include face recognition photos, a plain-text message, and encryption key.
+
+It enables data protection that clears sensitive (tainted) data objects at the end of their life range as well as detects leak of the sensitive data in the midst of program execution.
+
+
+Dynamic taint tracking is expensive, particularly if we don't want to consider a single bit and do genreic taint tracking.
+% 
+In prior work they considered making it better in performance by considering things specific to GPU.
+%
+We want to do so by combining static analysis and dynamic analysis.
+%
+For the static analysis we can capture the flow of information inside each application.
+%
+Since the applications are scheduled nondeterministically though, and can be used by different clients, we cannot use static taint tracking for interleaving applications in an efficient way. Otherwsise it will be too restrictive.
+%
+We built upon the static information flow control built prior.
+This happens when both kernels are accessing the shared memory, and one is safe while the other one is not. written in shared, is already given by the first thrust.
 \input{sections/thrust2/2a.tex}
 \input{sections/thrust2/2b.tex}
 \input{sections/thrust2/2c.tex}
