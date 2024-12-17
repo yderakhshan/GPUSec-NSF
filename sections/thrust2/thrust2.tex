@@ -42,7 +42,7 @@ The details of the attack vary depending on where in the memory the victim's inf
 
 \paragraph{Time-sharing setting.}
 
-Figure~\ref{fig:th2-attack}(a), for example, demonstrates an attack on a sequential server with private information stored in shared memory.
+Figure~\ref{fig:th2-mot}(a), for example, demonstrates an attack on a sequential server with private information stored in shared memory.
 %
 Similar to Thrust 1, the victim in this scenario is an AES application.
 % 
@@ -61,7 +61,7 @@ In both cases, the attacker knows the key and can infer the plaintext by observi
 In the literature, this attack is often called the End of Kernel (EOK) attack.
 
 
-Figure~\ref{fig:th2-attack}(b) demonstrates a similar attack for a sequential server, but this time with the private information stored in global memory.
+Figure~\ref{fig:th2-mot}(b) demonstrates a similar attack for a sequential server, but this time with the private information stored in global memory.
 %
 A segment of global memory is allocated to each CUDA context,  and an interleaved attacker kernel cannot access it until the application has terminated and the memory is deallocated.
 %
@@ -71,11 +71,11 @@ However, prior work~\cite{pietro2016TECS} have demonstrated that data can persis
 %
 As such, even if the programmer attempts to clear the memory before exiting, this access can still result in information leakage. 
 %
-For example, in Figure~\ref{fig:th2-attack}(b), the attacker can access the plaintext stored in the global memory by the victim even after the deallocation of the global memory segment by the victim.
+For example, in Figure~\ref{fig:th2-mot}(b), the attacker can access the plaintext stored in the global memory by the victim even after the deallocation of the global memory segment by the victim.
 
 \paragraph{Spatial-sharing setting.}
 
-When it comes to concurrent access, the situation becomes more complex as resources are allocated dynamically, and two applications can, in practice, access one segment of the memory simultaneously (see Figure~\ref{fig:th2-attack}(c)).
+When it comes to concurrent access, the situation becomes more complex as resources are allocated dynamically, and two applications can, in practice, access one segment of the memory simultaneously (see Figure~\ref{fig:th2-mot}(c)).
 %
 As stated in NVIDIA's MPS manual (Section 2.3.3.1), ``An out-of-range read in a CUDA kernel can access CUDA-accessible memory modified by another process and will not trigger an error, leading to undefined behavior.'' \cite{hayes2017usenix}
 \farzaneh{I'm not aware of many prior work on such attacks in MPS}
@@ -93,6 +93,7 @@ As stated in NVIDIA's MPS manual (Section 2.3.3.1), ``An out-of-range read in a 
 %
 
 \subsection{Prior work}
+\farzaneh{move to this to the separate section on prior work?}
 Prior work has explored various approaches to prevent these vulnerabilities, taking into account both the private information stored in shared memory and that in global memory.
 %
 Pietro et al.~\cite{pietro2016TECS} proposed to rewrite the code such that it zeroizes all leftover data in shared memory after kernel execution terminates.
@@ -106,6 +107,8 @@ In their experiments, they found that the overhead of zeroizing shared memory wa
 However, the overhead of zeroizing global memory through the CUDA runtime was not negligible.
 %
 Even if the overhead for zeroizing might be low, their approach prevents low-security data from remaining in shared memory when necessary; it forces the user to transfer the low-security data between CPU and GPU for each kernel execution, disrupting performance optimizations related to data locality and defeating the purpose of GPU programming.
+%
+
 %
 % Furthermore, their approach toward zeroizing shared memory is somewhat ad-hoc, relying completely on the programmer to rewrite the program to zeroize the shared memory location.
 % %
