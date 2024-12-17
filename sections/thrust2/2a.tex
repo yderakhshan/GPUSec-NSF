@@ -1,64 +1,139 @@
 \subsubsection{Task 2.a.} 
-We first focus on warps/shared memory.
+% We first focus on warps/shared memory.
+% %
+% We will address the challenges with respect to global memory next.
 %
-We will address the challenges with respect to global memory next.
+We propose designing a flow-sensitive information flow control type system a la Hunt and Sands\cite{hunt2006popl}  to capture the taint level propagation by running each warp.
 %
-We propose designing a flow-sensitive type system to capture the taint level propagation by running each thread.
+A flow-sensitive type system allows the confidentiality level,
+i.e., security type, of variables and locations to change while typing the program. 
 %
-The judgment is of the form.
+For example, after each high-security write on a particular location, the security level associated to the location increases to at least the security level of the secret.
 %
-$\Psi; \Sigma, \pc \vdash s \dashv \Sigma'$.
+There are two main challenges that we need to address: First, we are interested in a fine-grained security annotations to shared memory locations, which are usually modeled as arrays or matrices.
+%
+Prior work~\cite{?} assign a single security level to the whole array, i.e., after a single high-security write on a single index of an array, they change the security type of the entire array to high.
+%
+While this results in a sound type system, it is too coarse-grained for our application, for which we are interested in identifying, as exact as possible, the locations of the array which may be influenced by a secret. 
+%
+The second challenge emerges from the non-deterministic interleaving of warps.
+%
 
+To address the first challenge, we associate a security level to each location in shared memory, and annotate the typing judgment with the warp id, that shows which threads are accessible to each warp, and a mask, that shows an overapproximation for which threads in the warp are ran in the particular branch of the code.
+% 
+Having these information, our type system then would track the changes in the security levels as fine-grained as possible.
+%
+For example, if there is a high-secrecy write on the shared memory indexed by a constant, our type system only changes the security annotation of that particular location.
+%
+If there is a high-secrecy write on the shared memory indexed by $\mathsf{tid}$, our type system only changes the security annotation of those shared memory locations that are running inside the current warp and satisfy the condition provided by the current mask.
 
-$\Sigma$ is the pre-context, corresponding to the types and security levels before running $s$,
-$\Sigma'$ is the post-context, corresponding to the types and security levels after running $s$.
+We generalize the judgment from Thrust 1, task 1.a to be of the form.
 %
-We assume that the types remain the same before and after, but the security levels can change by wiritng on them.
+$\Psi; \mathsf{wID};\mathsf{mask};  \Sigma; \pc\vdash s \dashv \Sigma'$.
+
+Where $\Sigma$ and $\Sigma'$ are the pre- and post-context, respectively mapping variables and locations to security variables and concrete levels of the lattice $\mathit{Var} \rightarrow \Psi$.
 %
-% To account for the low-integrity writes, we consider a taint level consisting of a pair $\langle c, i \rangle$, where $c$ is the security level and $i$ is the integrity level.
+They correspond to the  security levels before  and afterrunning $s$ by threads that satisfy $\mathsf{mask}$ in warp $\mathsf{wID}$, respectively.
 %
-% Each judgment comes with a security level $\mathsf{sec}$, which is the level of security of the kernel, this corresponds to the amount of secret that they are allowed to know.
+% We assume that the types remain the same before and after, but the security levels can change by writng on them.
 %
+The $\pc$ represents the usual ``program counter'' level and serves to capture the indirect infomrmation flows.
+% 
 We also assume a lattice $\Psi$.
 %
 We fix one lattice and drop $\Psi$ fromthe judgments for clarity.
 %
-We provide a more fine-grained security for each element of shared memory.
+%
+For the expressions we have the usual typing judgments $\Sigma \vdash e: \tau$ as expressions cannot write to any memory locations.
+% To account for the low-integrity writes, we consider a taint level consisting of a pair $\langle c, i \rangle$, where $c$ is the security level and $i$ is the integrity level.
+%
+% Each judgment comes with a security level $\mathsf{sec}$, which is the level of security of the kernel, this corresponds to the amount of secret that they are allowed to know.
+%
+
+% We provide a more fine-grained security for each element of shared memory.
 %
 Here we list a few sample rules:
 
-Writing a constant $\mathsf{c}$ on a shared location indexed with a constant $\mathsf{c}'$, brings the level to $\mathsf{pc}$.
-\farzaneh{what if the index is not constant? Is the second rule ok? What if shared memory is dynamically allocated?}
+Writing an expression of securitry level $\iota$ on a shared location indexed with a constant $c'$, brings the level of $S[c']$ to $\mathsf{pc}\sqcup \iota$, an does not affect the security annotations for the rest of shared memory.
+%
+Where $e$ is not a shared memory location.
+\farzaneh{Does these rules make sense to you? What if shared memory is dynamically allocated?}
 \begin{mathpar}
-\infer*[Right=]{S:\tau\in \Sigma \\
-\Sigma \vdash  c: \tau\\
-\Sigma \vdash \mathsf{c}': \mathsf{int}
- }{\Sigma,  S[\mathsf{c}']:x, \pc \vdash S[\mathsf{c}']\leftarrow \mathsf{c} \dashv \Sigma,  S[\mathsf{c}']:\pc}
+\infer*[Right=]{
+\Sigma \vdash  e: \iota
+ }{\mathsf{wID}; \mathsf{mask};\Sigma, \pc \vdash S[c']\leftarrow e \dashv \Sigma[S[c']\mapsto \pc \sqcup \iota]}
 \end{mathpar}
 
 
 \begin{mathpar}
-    \infer*[Right=]{S:\tau\in \Sigma \\ \Sigma \vdash c: \tau\\
-    x= \bigvee_{1 \le i \le n} x_i
-     }{\Sigma,  S[1]:x_1, \cdots, S[n]:x_n, \pc \vdash S[\mathsf{tid}]\leftarrow \mathsf{c} \dashv \Sigma, S[1]:x \vee \pc, \cdots, S[n]:x \vee \pc}
+    \infer*[Right=]{ \Sigma \vdash e: \iota\\
+    % x= \bigsqcup_{i \in \mathsf{wID}\cup \mathsf{mask}}x_i
+     }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash S[\mathsf{tid}]\leftarrow e \dashv \Sigma[S[i]\mapsto \pc \sqcup \iota]_{i \in \mathsf{wID} \cup \mathsf{mask}}}
     \end{mathpar}
 
+More generally, we can write
 
+\begin{mathpar}
+    \infer*[Right=]{ \Sigma \vdash e: \iota\\
+    % x= \bigsqcup_{i \in \mathsf{wID}\cup \mathsf{mask}}x_i
+     }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash S[e']\leftarrow e \dashv \Sigma[S[i]\mapsto \pc \sqcup \iota]_{i \in \mathsf{wID} \cup \mathsf{mask} \cup \mathsf{set}(e')}}
+    \end{mathpar}
+where $\mathsf{set}(e')$ is a set consisting of all threads that can be identified by the expression $e'$. For example, $\mathsf{set}(\mathsf{tid})$ refers to the set consisting of all threads, and $\mathsf{set}(c')$ is a singleton set consisting of thread with identifier $c'$.
 
-The more general rule is:
-    \begin{mathpar}
-        \infer*[Right=]{S:\tau\in \Sigma \\ \Sigma \vdash e: \tau[y]\\
-        \mathsf{c}': \mathsf{int}
-         }{\Sigma,  S[\mathsf{c}']:x, \pc \vdash S[\mathsf{c}']\leftarrow e \dashv \Sigma,  S[\mathsf{c}']:y \vee \pc}
-        \end{mathpar}
+\farzaneh{the above rule is not quite true, there should be an intersection involved. or define it as $\mathsf{set}(e',\mathsf{mask}, \mathsf{wID})$}
+\farzaneh{TODO: add the if clause rule.}
 
 For the reads from shared memory, we have:
 
 \begin{mathpar}
-    \infer*[Right=]{S:\tau\in \Sigma \\ \Sigma \vdash c: \tau\\
-    S[e]:x \in \Sigma
-     }{\Sigma,  X:w, \pc \vdash X \leftarrow S[e] \dashv \Sigma,  X:x \vee \pc}
+    \infer*[Right=]{ 
+   \Sigma \vdash S[i]:i_\iota \\
+    \iota= \bigsqcup_{i \in \mathsf{wID}\cup \mathsf{mask} \cup \mathsf{set}(e)}\iota_i
+     }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash X \leftarrow S[e] \dashv \Sigma[X \mapsto \iota \vee \pc]}
 \end{mathpar}
+Where $X$ is not a shared memory.
+When both reading and writing is from shared memory, we can write a similar rule by combining the two above rules.
+% \begin{mathpar}
+%     \infer*[Right=]{ \Sigma \vdash e: \iota\\
+%     x= \bigsqcup_{i \in \mathsf{wID}\cup \mathsf{mask}}x_i
+%      }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash S[\mathsf{tid}]\leftarrow e \dashv \Sigma, S[1]:x \vee \pc, \cdots, S[n]:x \vee \pc}
+%     \end{mathpar}
+
+
+    To account for the interleaving of warps, we use the static typing rules as a function $\mathsf{static-type}$ from the initial context $\Sigma$, the warpid $\mathsf{wID}$, and the $i$-th segment code.
+    %
+    The locations in $\Sigma$ are all considered to be of a variable type.
+    %
+    $\Psi; \mathsf{wID}; \mathsf{true};  \Sigma; \mathsf{Low}\vdash s_i \dashv \Sigma'$.
+    %
+    The function $\mathsf{static-type} (\mathsf{wID}, \Sigma, s_i)$ returns the context $\Sigma'$.
+    %
+    Using the function, we want to find all possible permutations of warps for each  segment, such that the input contex of the next warp is the output of the static typing for the previous warp.
+    %
+    We plan to calculate the result of each interleaving using a dynamic algorithm.
+    %
+    The final result for each segment then will be the joint of the output of all possible interleavings (the worst case scenario).
+    %
+    Then we put the results of each segments together and find the final result of all.
+    %
+    The input of the first warp of the first segment has to be assumed to be all low security.
+    %
+    This means that if the victim reads from a key left over by the attacker, then the ciphertext is also of a low security.
+    \farzaneh{I have to think about this more. I feel like we do need some integrity level.} 
     
-To account for the interleaving of warps, we need to know how many warps will be allocated. (Or have an upper bound on it?)
+We assume that the code cannot synchronize inside an if clause. The code can be separated into several segments between which there is a thread synchronize.
+
+For this approach we need to know how many warps will be allocated.
+(Or have an upper bound on it.)
+
+
+
+% $\Sigma =H, \pc \vdash s \dashv \Sigma'$
+
+% $\Sigma', \pc \vdash s \dashv \Sigma''$
+
+
+
+% $f^n(\Sigma[H])$ -> first part
+
 

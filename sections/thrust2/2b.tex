@@ -1,2 +1,37 @@
 \subsubsection{Task 2.b} 
-Runtime monitor:
+The static algorithm above can be too restrictive since it has to consider all possible interleavings of warps, while in runtime, depending on the scheduler, only some of these interleavings may actually happen. 
+%
+(\farzaneh{is this true?})
+In this task, we plan to build a flow-sensitive dynamic runtime monitor
+that works on top of the static type system above.
+%
+This means that we still use the function $\mathsf{static-type}$ as described in the previous task for each segment of a warp, but use the following dynamic rules to track the actual interleavigs of warps and find the real permutation of the functions for each segment of warps.
+
+The configuration is of the form $\langle s, \sigma \rangle \mid \langle R,C \rangle  \mid_\mu  \Sigma$, where $\langle s, \sigma \rangle$ is the running code and  memory state and $\Sigma $ is the state of the monitor.
+
+\begin{mathpar}
+    \infer*[Right=]{
+       R= \mathit{wid};R'\\ 
+       \langle s, \sigma \rangle \Downarrow_{\mathit{wid}}  \langle \mathsf{skip}, \sigma' \rangle \\
+       \Sigma'=\mathsf{static-type}(\mathit{wid}, \Sigma, s)
+     }{\langle s;\bar{s}, \sigma \rangle \mid \langle R, C\rangle \mid_\mu  \Sigma\,\, \rightarrow\,\, \langle s;\bar{s}, \sigma' \rangle \mid \langle R', \mathit{wid};C\rangle \mid_\mu  \Sigma'\,}
+\end{mathpar}
+
+\begin{mathpar}
+    \infer*[Right=]{
+      }{\langle s;\bar{s}, \sigma \rangle \mid \langle \epsilon, C\rangle \mid_\mu  \Sigma\,\, \rightarrow\,\, \langle \bar{s}, \sigma \rangle \mid \langle C;\epsilon \rangle \mid_\mu  \Sigma\,}
+\end{mathpar}
+
+
+
+The following rule makes sure that we can only stop if every shared memory location is non-tainted.
+\begin{mathpar}
+    \infer*[Right=]{
+     \forall S[i]:\iota \in \Sigma.\, \iota \sqsubseteq \mathsf{Low}   
+      }{\langle \mathsf{skip}, \sigma \rangle \mid \langle R, C\rangle \mid_\mu  \Sigma\,\, \rightarrow\,\, \langle \mathsf{stop}, \sigma \rangle \mid \langle R;C \rangle \mid_\mathsf{succ}  \Sigma\,}
+\end{mathpar}
+
+It will be interesting to mix shared and global memory.
+
+\farzaneh{We can also propose a hybrid dyamic-static monitor for the warp-level. Should we? See~\cite{russo2010CSF}}
+
