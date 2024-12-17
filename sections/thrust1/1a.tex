@@ -40,45 +40,7 @@ Second, we will show the type system sound with respect to the Relational Hoare 
 
 \farzaneh{Put more here based on Amal and Jan's RHL.}
 
-A key difficulty in analyzing GPU programs, as opposed to CPU programs, is that each thread maintains a separate copy of local variables.
-%
-This fact can be used to leak information in non-obvious ways.
-%
-For example, consider the following program in which~\lstinline{h} is a high-security local variable,~\lstinline{S} is an array stored in shared memory, and~\lstinline{threadIdx} is the integer thread identifier of each thread.
 
-\begin{lstlisting}
-if (h) {
-  S[2 * threadIdx] = 0;
-} else {
-  S[2 * threadIdx] = 0;
-}
-\end{lstlisting}
-
-Naively, it would appear that, although this program conditions on the high-security variable~\lstinline{h}, doing so can't leak information because the code in both branches is identical and the shared memory access uses only low-security indices (\lstinline{threadIdx} is considered low-security).
-%
-However, the program does indeed leak information.
-%
-Consider an execution in which threads $0--15$ take the ``then'' branch and threads $16--31$ take the ``else'' branch.
-%
-In this case, neither branch has a bank conflict, and nor does the program as a whole because the two branches are executed in sequence.
-%
-On the other hand, consider an execution in which even-number threads take the ``then'' branch and odd-number threads take the ``else'' branch.
-%
-In this case, both branches have a bank conflict.
-%
-The leak here is due to the fact that {\em which threads are active} during each branch impacts cost behavior, and this in turn is determined by high-secrecy information.
-%
-
-Because GPU programs generally have thousands of threads, reasoning about the local state of individual threads quickly becomes intractable.
-%
-Muller and Hoffmann~\cite{MullerHo21} observe that a useful middle ground is to instead track which variables are {\em uniform} across all threads and reason precisely only about the local state of these variables.
-%
-From a cost perspective, this is sufficient in many real-world GPU programs because variables, such as loop indices, that impact cost are generally uniform.
-%
-We hypothesize that this approximation is useful in a security context as well.
-%
-For example, in determining that the above program has an information leak, it suffices to know {\em whether}~\lstinline{h} is uniform, because the leak stems from the fact that it may be divergent (i.e., not uniform).
-\stefan{Move this example to an earlier section?}
 
 \paragraph{Resource aware - Relational Hoare Logic.}
 The judgment for our resource-aware Relational Hoare Logic will be of the form 

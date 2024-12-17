@@ -1,3 +1,25 @@
+@inproceedings{AESattack,
+    author = {Jiang, Zhen Hang and Fei, Yunsi and Kaeli, David},
+    title = {A Novel Side-Channel Timing Attack on GPUs},
+    year = {2017},
+    isbn = {9781450349727},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    url = {https://doi.org/10.1145/3060403.3060462},
+    doi = {10.1145/3060403.3060462},
+    abstract = {To avoid information leakage during program execution, modern software implementations of cryptographic algorithms target constant timing complexity, i.e., the number of instructions executed does not vary with different inputs. However, many times the underlying microarchitecture behaves differently when processing varying data inputs, which covertly leaks confidential information through the timing channel. In this paper, we exploit a novel fine-grained microarchitectural timing channel, stalls that occur due to bank conflicts in a GPU's shared memory. Using this attack surface, we develop a differential timing attack that can compromise table-based cryptographic algorithms. We implement our timing attack on an Nvidia Kepler K40 GPU, and successfully recover the complete 128-bit AES encryption key using 10 million samples. We also evaluate the scalability of our attack method by attacking a 8192-thread implementation of the AES encryption algorithm, recovering some key bytes using 1 million samples.},
+    booktitle = {Proceedings of the Great Lakes Symposium on VLSI 2017},
+    pages = {167–172},
+    numpages = {6},
+    keywords = {gpu security, hardware security, side-channel security, timing attack},
+    location = {Banff, Alberta, Canada},
+    series = {GLSVLSI '17}
+    }
+
+      
+
+
+
 @inproceedings{Relcost,
 author = {\c{C}i\c{c}ek, Ezgi and Barthe, Gilles and Gaboardi, Marco and Garg, Deepak and Hoffmann, Jan},
 title = {Relational cost analysis},
