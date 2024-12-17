@@ -1,150 +1,119 @@
-\subsection{Motivating Example: AES encryption algorithm.}
+%\subsection{Motivating Example: AES encryption algorithm.}
 
-\stefan{I think this example can be trimmed quite a bit. Do you want me to give it a try?}
+We briefly describe three main challenges in addressing timing attacks in GPU code.
+%
+Two of these challenges are specific to GPUs.
+%
+The third is a challenge for CPU security as well, but interacts with the
+first two challenges and will need to be handled specially for GPU code.
 
-% We consider a table-based AES encryption algorithm as an example.
+\paragraph{Challenge 1: GPU-specific timing channels.}
+The AES example in Section~\ref{sec:motivating} showed one new timing channel not addressed by prior work on CPUs: bank conflicts are a phenomenon specific to the GPU memory model.
 %
-Advanced Encryption Standard (AES) is one of the most popular encryption algorithms.
+While cache effects are a timing channel that exists in CPU code and also depends on locality of memory accesses \stefan{(cite? I assume someone has studied caching as a timing channel)}, bank conflicts behave differently and will need to
+be handled differently.
 %
-Given a cipher key, the AES algorithm applies iterative rounds of transformations  to encrypt a confidential input (plaintext) such as passwords and private messages into the ciphertext.
+For example, suppose~\texttt{h} is a high-security bit (i.e.,~\texttt{h} is known to be 0 or 1).
 %
-The iterative transformations are done sequentially, with the same set of commands, except the last round, which is slightly different. 
+If array \lstinline{S} is stored in shared memory,
+the access \lstinline{S[threadIdx.x * h]} has no bank conflicts regardless
+of~\texttt{h} and therefore leaks no information through bank conflicts
+(if \lstinline{S} contains secret data, it may, of course, leak this data
+through other means).
 %
-Each round also transforms the cipher key based on a key schedule; we use the term {\em round key} to refer to the key for each round.
+Neither does the access \lstinline{S[threadIdx.x * 5 * h]}: because~5
+and~32 are relatively prime, even if~\texttt{h = 1}, each thread targets a
+different bank, although the locality is much worse.
 %
-AES is a symmetric-key algorithm, meaning that the same key used in the decryption, i.e., anyone who knows the cipher key can deduce the confidential plaintext from the cipher text. 
-%
-The same key is used to decrypt the ciphertext back to the original plaintext.
+However, the access \lstinline{S[threadIdx.x * 2 * h]}, which has better
+locality than the previous code, will result in bank conflicts if~\texttt{h = 1}.
 
-AES is a block cipher algorithm that works on fixed-sized blocks of 128 bits.
+The SIMT execution model of GPUs can also lead to timing channels.
 %
-This means that the transformations apply on fixed-sized blocks of 128 bits.
-%
-Each block of the plaintext is encrypted separately.
-%
-The block is a 4 x 4 two-dimentional array which we call the input state and is transformed into another 4 x 4 array  which we call the round output state.
-%
-The output state of one round will be the input state of the next round.
-%
+Consider the following code:
 
-\farzaneh{put the transoformation for one round.}
+\begin{lstlisting}
+if (h) {
+  h = 1;
+} else {
+  h = 2;
+}
+\end{lstlisting}
 
-Since the transformations are the same in all blocks, they can be summarized in T-look up tables.
+Recall that each thread has a separate copy of local variables, so that
+each thread may have a different value for~\texttt{h}.
 %
-For each round, it reads each byte of the input state and use it as the index to the look up key to get T(x), then it uses * to calculate the output state. 
+The code results in no insecure information flows through data: only
+high-security variables are written.
 %
-All rounds use the same T-look up table, except the final round which is slightly different.
+If this code is executing on a CPU using reasonably traditional cost models,
+there are also no obvious timing channels: one branch will be taken, but
+both should take the same amount of time.
 %
-y. To speedup the process,
-pre-computed tables are used and each round can be implemented with a sequence of table lookups and bit-wise XOR
-operations with the round keys, which are expanded from
-the 128-bit key
-The output of one round is used as indices of the table lookups in the next round, except for the
-fnal round, whose output is the ciphertext.
-Each AES round can be implemented using four lookup
-tables and XORs only, avoiding the expensive polynomial multiplications under.
-his approach significantly accelerated
-the computation, at the cost of larger memory space required: it
-requires four lookup tables each using 256 x 4 bytes
+However, because all threads of a warp must execute the same instruction at the same time, when a warp evaluates the conditional, if~\texttt{h} is true in some threads and false in others, the GPU must disable the threads where~\texttt{h} is false, run the ``then'' branch, and then swap what threads are active to execute the ``else'' branch.
+%
+The two branches run sequentially on different sets of threads.
+%
+This is referred to as a {\em warp divergence}.
+%
+If~\texttt{h} has the same value on all threads in the warp, however, only
+one branch is executed.
+%
+This means that, when run on a GPU, the above code has a timing leak: by
+observing the time taken to execute the code, we can determine whether or not
+all threads in the warp have the same value for~\texttt{h}.
 
-The fundamental reason is that the correlation between the degrees of memory un-coalescing/bank
-conficts and the execution time leaks the table index information through the timing channel.
+\paragraph{Challenge 2: Leaks through the thread mask.}
+An additional difficulty in reasoning about GPU code, which is not present in CPU code, is that the security of a code snippet can depend on the current {\em mask}, that is, what threads in a warp are active (which may be a subset of the threads in the warp if there has been a warp divergence).
 %
-n, it is also known that
-the table-based AES leaves key-dependent footprints in data
-caches, thereby becoming vulnerable to prime-and-probe attacks [21], aka access-driven cache attacks [14, 18],
-The input state of each round depends on the plain text and the input state of the previous round and the round key.
-%
-Consider the final round, for example,
+For example, consider the following program in which~\lstinline{h} is a high-security local variable,~\lstinline{S} is an array stored in shared memory, and~\lstinline{threadIdx} is the integer thread identifier of each thread.
 
-Input to round 10:
+\begin{lstlisting}
+if (h) {
+  S[2 * threadIdx] = 0;
+} else {
+  S[2 * threadIdx] = 0;
+}
+\end{lstlisting}
 
-8fe5e78f0fd14cf77c816b55e8cce57f
-
-
-
-so that they can only be accessed by the parties with high enough security clearance.
+Naively, it would appear that, although this program conditions on the high-security variable~\lstinline{h}, doing so can't leak information because the code in both branches is identical and the shared memory access uses only low-security indices (\lstinline{threadIdx} is considered low-security).
 %
-AES encrypts a data block of length 128-bits storing confidential data.
-% 
-In AES, a key (which can be a word or phrase) is used to encrypt the plain text data to cipher text and the same key is used to decrypt the ciphertext back to the original plaintext.
+However, the program does indeed leak information.
 %
-The plain text cannot be read by any other party except those that possess the key.
+Consider an execution in which threads 0--15 take the ``then'' branch and threads 16--31 take the ``else'' branch.
 %
-The encryption phase of AES is applied on each data block of 128 bits by running the same set of steps in iterative rounds.
+In this case, neither branch has a bank conflict, and nor does the program as a whole because the two branches are executed in sequence.
 %
-\farzaneh{on each byte of the block}
-% It applies 10, 12, or 14 rounds in algorithm and the key can be of size 128, 192, or 256 bits depending on the number of rounds.
-% AES is an iterated symmetric block cipher, which means that AES works by repeating the same defined steps multiple times.
+On the other hand, consider an execution in which even-number threads take the ``then'' branch and odd-number threads take the ``else'' branch.
 %
-For a plain text of large size, the GPU parallel pardigm can significantly increase the speed of each round of encryption by applying the steps of a round on all blocks of the plaintext simultaneously (the AES encryption algorithm can be easily parallelized).
+In this case, both branches have a bank conflict.
 %
-\farzaneh{and all bytes of the same block.}
-The algorithm does the exact same thing to each block.
-
-
-We consider a table-based implementation of the encryption algorithm in which the steps of each round is summarized as a lookup table.
-%
-The algorithm reads a block from the memory, for each byte of the block, it calculates an index and looks up the look up table for that index, and replace the byte with a bitwise XOR of the value stored in the look up table and the round key.
-%
-Since T-tables are constant data and shared by all threads, they are an excellent candidate to store in the shared memory. We assume look up tables are stored on shared memory.
-%
-\farzaneh{each thread can perform the steps of the round for each byte.}
-
-What indices of the T-tables will be accessed depends on the output text from the previous round which in turn (ultimately) depends on the previous round key and the original plain text. 
-% 
-% Each GPU thread encrypts a 16-byte block independently.
-%
-% We transform the AES encryption procedure into a single
-% GPU kernel, where each GPU thread can process one block
-% encryption, independently. 
-%
-% Each block consists of 16 bytes.
-%
-The attacker targets the last-round key. \farzaneh{I'm not sure why last-round and not one to the last?}
-%
-The attacker can observe the number of bank conflicts (different accesses to the look up table), and based on that number can deduce information about the round key.
-%
-The number of bank conflicts depends on the key and the plain text. 
-%
-For example, by observing the bank conflicts, the attacker can distinguish the following two round keys/plain text.
-
-% (It also depend on the implementation and layout of data on shared memory.)
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[clip,trim=0 4cm 0 0cm,width=0.7\pdfpagewidth]{figs/AES1.pdf}
-    \caption{AES encryption leakage \farzaneh{refine}}
-\end{figure}
-
-\farzaneh{Several similar attacks have been described in the literature~\cite{??}.}
-\farzaneh{Should we also add coalescing access of Global memory?}
-\paragraph{Challenge 1.} The example above is a show-case for the different memory model and parallelism paradigm used in GPU programming. If we naively use the methods developed for CPU parallelism paradigm and its memory model, we cannot capture this new form of side channel attacks.
-%
-In GPU parallelism paradigm, all threads in one block run the exact same code. 
-%
-Having different code result in sequentialization of the system which in turn results in different timing behavior. \farzaneh{Maybe the AES example is not the best, because we cannot explain these parts. I'll try to come up with another example.}
-%
-We need to design a typing system with this memory model and attack model in mind to ensure that we do not leak information.
-
-
-\farzaneh{move to related work?}This difference has been noticed by several prior work and has been * in attacks. However, the particular solutions that are provided are ad-hoc to each particular exam and are not proved to be correct.
+The leak here is due to the fact that {\em which threads are active} during each branch impacts cost behavior, and this in turn is determined by high-secrecy information.
 %
 
-
-
-
-\paragraph{Challenge 2.} Avoiding any possible leak is too restrictive and also not realistic. 
+Because GPU programs generally have thousands of threads, reasoning about the local state of individual threads quickly becomes intractable.
 %
-Small differences in the number of bank conflicts may not even be detectable by the attacker given the undeterministic environment.
+Muller and Hoffmann~\cite{MullerHo21} observe that a useful middle ground is to instead track which variables are {\em uniform} across all threads and reason precisely only about the local state of these variables.
 %
-For example, if the attacker can observe both CPU and GPU runtime (?).
+From a cost perspective, this is sufficient in many real-world GPU programs because variables, such as loop indices, that impact cost are generally uniform.
+%
+We hypothesize that this approximation is useful in a security context as well.
+%
+For example, in determining that the above program has an information leak, it suffices to know {\em whether}~\lstinline{h} is uniform, because the leak stems from the fact that it may be divergent (i.e., not uniform).
+
+
+\paragraph{Challenge 3: Quantitative leak analysis.}
+Avoiding any possibility of information leaks is too restrictive and also not realistic: in the AES example, it is difficult to imagine any table-based implementation that would not suffer from possible timing attacks; even if preventing these attempts is possible, it would be at the cost of a very slow implementation.
+%
+However, small differences in the number of bank conflicts may not even be detectable by the attacker given the nondeterministic environment and experimental noise.
+%
+This suggests there may be some middle ground where the differences in bank conflicts between runs are mitigated to the point where extracting a key based on differences in timing is intractable but the implementation is still reasonable.
 %
 Moreover, even if the attacker observes some information it is ok if we leak some sort of information (another reason why LLM is a betetr example).
 %
-If we be too restrictive and avoid every form of leakage, then we cannot train LLM at all. 
+If we are too restrictive and avoid every form of leakage, then we cannot train LLM at all. \stefan{This sounds more related to declassification, which we don't address; maybe I'm misreading it.}
 %
-What we want however, is to ensure that the information that the attacker observes does not increase its chances a lot for guessing private information enclosed in the training data set.
+What we want however, is to ensure that the information that attackers' observations do not increase their chances of guessing private information beyond some acceptable amount.
 % The key is fixed. Test it using a given plaintext to find the key.
 % Accessing shared memory depends on the key.
 

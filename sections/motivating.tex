@@ -1,0 +1,38 @@
+\label{sec:motivating}
+In this section, we discuss two motivating examples drawn from recently
+published timing attacks on GPU code.
+%
+We will refer to these examples throughout the proposal and, in Thrust 3,
+propose to reproduce the attacks and show that our proposed work mitigates
+them.
+
+\subsection{AES Encryption}
+Advanced Encryption Standard (AES) is one of the most popular encryption algorithms.
+%
+Given a cipher key, the AES algorithm applies iterative rounds of transformations  to encrypt a confidential input (plaintext) such as passwords and private messages into the ciphertext.
+%
+Each round constructs a new {\em round key}, and all round keys are considered
+to be high-security as any one is sufficient to reconstruct the original
+secret.
+%
+In each round, a transformation is applied to 16-byte blocks of the round key.
+%
+In order to speed up encryption, many implementations of AES implement the
+transformations partially using a lookuptable: each byte of the block is
+looked up in the table to obtain a transformed byte, and then an additional
+operation is performed on the transformed bytes within the block.
+%
+Because blocks can be encrypted independently and the same lookup table is used
+for all of the transformations in a round, it is logical to parallelize
+encryption by having each thread transform a block, and to store the lookup
+table in shared memory.
+
+Because the table is stored in shared memory and is indexed using bytes of the
+round key, the number of bank conflicts can leak information about the key.
+%
+Jiang et al.~\cite{AESattack} present such an attack on a table-based
+implementation of AES, and show that they are able to reconstruct the
+last-round key solely by observing the encryption time.
+
+\subsection{Large Language Models}
+\stefan{fill in}
