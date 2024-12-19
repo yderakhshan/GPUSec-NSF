@@ -5,33 +5,66 @@ The static algorithm above can be too restrictive since it has to consider all p
 In this task, we plan to build a flow-sensitive dynamic runtime monitor
 that works on top of the static type system above.
 %
-This means that we still use the function $\mathsf{static-type}$ as described in the previous task for each segment of a warp, but use the following dynamic rules to track the actual interleavigs of warps and find the real permutation of the functions for each segment of warps.
+This means that we still use the function $\mathsf{static-type}$ as described in the previous task for each segment of the code and  each warp, but use a dynamic monitor to track the actual interleavings of warps and find the real permutation of the functions for each segment.
 
-The configuration is of the form $\langle s, \sigma \rangle \mid \langle R,C \rangle  \mid_\mu  \Sigma$, where $\langle s, \sigma \rangle$ is the running code and  memory state and $\Sigma $ is the state of the monitor.
+We plan to model the dynamic monitor using a set of operational semantics rules.
+%
+The rules work on the configuration of the form $\langle s, \sigma \rangle \mid \langle R,C \rangle  \mid_\mu  \Sigma$, where $s$ is the running code representing a sequence of segments being executed in order, $\sigma$ is the runtime memory state, which assigns values to locations,  $\Sigma $ is the state of the monitor, which  assigns security levels to locations, $R$ is the queue of warps ordered by the scheduler that are currently waiting to run the current segment, and $C$ is the set of warps that have already completed running the current segment.
+%
+\farzaneh{what is $\mu$? events of the monitor.}
+
+The monitor's role is to track the propagation of security levels, updating the state as the program executes.
+%
+However, for each segment and each warp, instead of tracking such propagation dynamically, we use the static typing function $\mathsf{static-type}$.
+%
+If the scheduler executes $\mathsf{wID}$ to run segment $s_j$, we update the state of the monitor via $\Sigma'=\mathsf{static-type}(\mathsf{wID}, \Sigma, s_j)$, where $\Sigma$ is the pre-state and $\Sigma'$ is the post-state.
+% %
+The following rule models this idea.
+% The monitor state  $\Sigma$ is updated as warps modify shared memory locations.  For example, if a warp writes to a shared memory location, the monitor may increase the security level of that location depending on the security level of the contents (e.g., if it writes high-security data, the memory location's security level will be updated to high).
+
 
 \begin{mathpar}
     \infer*[Right=]{
-       R= \mathit{wid};R'\\ 
-       \langle s, \sigma \rangle \Downarrow_{\mathit{wid}}  \langle \mathsf{skip}, \sigma' \rangle \\
-       \Sigma'=\mathsf{static-type}(\mathit{wid}, \Sigma, s)
-     }{\langle s;\bar{s}, \sigma \rangle \mid \langle R, C\rangle \mid_\mu  \Sigma\,\, \rightarrow\,\, \langle s;\bar{s}, \sigma' \rangle \mid \langle R', \mathit{wid};C\rangle \mid_\mu  \Sigma'\,}
+       R= \mathsf{wID};R'\\ 
+       {\mathsf{wID}}   \vdash \langle s_j, \sigma \rangle \Downarrow\langle \mathsf{skip}, \sigma' \rangle \\
+       \Sigma'=\mathsf{static-type}(\mathsf{wID}, \Sigma, s_j)
+     }{\langle s_j;\bar{s}, \sigma \rangle \mid \langle R, C\rangle \mid_\mu  \Sigma\,\, \rightarrow\,\, \langle s_j;\bar{s}, \sigma' \rangle \mid \langle R', \mathsf{wID};C\rangle \mid_\mu  \Sigma'\,}
 \end{mathpar}
 
+When all warps complete a particular segment, we continue with the rest of the segments, without changing the state of the monitor.
+%
+The queue of the warps for the next segment is determined by the scheduler.
 \begin{mathpar}
     \infer*[Right=]{
-      }{\langle s;\bar{s}, \sigma \rangle \mid \langle \epsilon, C\rangle \mid_\mu  \Sigma\,\, \rightarrow\,\, \langle \bar{s}, \sigma \rangle \mid \langle C;\epsilon \rangle \mid_\mu  \Sigma\,}
+        R= \mathit{Schedule}(C)
+      }{\langle s;\bar{s}, \sigma \rangle \mid \langle \epsilon, C\rangle \mid_\mu  \Sigma\,\, \rightarrow\,\, \langle \bar{s}, \sigma \rangle \mid \langle R;\epsilon \rangle \mid_\mu  \Sigma\,}
 \end{mathpar}
 
+The rule ensures that the kernel terminates only when every shared memory location is non-tainted; the monitor verifies that all shared memory locations are annotated with a security level of $\mathsf{Low}$.
 
-
-The following rule makes sure that we can only stop if every shared memory location is non-tainted.
 \begin{mathpar}
     \infer*[Right=]{
      \forall S[i]:\iota \in \Sigma.\, \iota \sqsubseteq \mathsf{Low}   
-      }{\langle \mathsf{skip}, \sigma \rangle \mid \langle R, C\rangle \mid_\mu  \Sigma\,\, \rightarrow\,\, \langle \mathsf{stop}, \sigma \rangle \mid \langle R;C \rangle \mid_\mathsf{succ}  \Sigma\,}
+      }{\langle \mathsf{skip}, \sigma \rangle \mid \langle R, C\rangle \mid_\mu  \Sigma\,\, \rightarrow\,\, \langle \mathsf{stop}, \sigma \rangle \mid \langle R;C \rangle \mid_{\mu;\mathsf{secure}}  \Sigma\,}
 \end{mathpar}
 
+If the condition of having low-security levels across all shared memory locations does not hold, we can design the monitor to either raise an alarm or take corrective action by zeroizing the tainted memory locations. 
+% 
+% Raising an alarm would notify the system or the user that a security violation may occurr.
+% % 
+% In the latter approach, 
+% Alternatively, we can design the monitor to take action to zeroize the tainted memory locations.
+%
+If not done carefully, the latter approach can be a source of implicit flows. 
+%
+In particular, if the monitor simply writes a random constant on the tainted location, the attacker can infer a secret based on which a location might be zeroized or not.
+
+
+% still observe the difference between the value written by the monitor and what she expected if the secret was something else and the memory locations end up not needing to be zeroized.
+
+Same ideas hold for the global memory.
 It will be interesting to mix shared and global memory.
+\farzaneh{do we need more discussion on this?}
 
 \farzaneh{We can also propose a hybrid dyamic-static monitor for the warp-level. Should we? See~\cite{russo2010CSF}}
 

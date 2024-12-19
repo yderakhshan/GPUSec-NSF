@@ -10,30 +10,33 @@ i.e., security type, of variables and locations to change while typing the progr
 %
 For example, after each high-security write on a particular location, the security level associated to the location increases to at least the security level of the secret.
 %
-There are two main challenges that we need to address: First, we are interested in a fine-grained security annotations to shared memory locations, which are usually modeled as arrays or matrices.
-%
-Prior work~\cite{?} assign a single security level to the whole array, i.e., after a single high-security write on a single index of an array, they change the security type of the entire array to high.
-%
-While this results in a sound type system, it is too coarse-grained for our application, for which we are interested in identifying, as exact as possible, the locations of the array which may be influenced by a secret. 
-%
-The second challenge emerges from the non-deterministic interleaving of warps.
+% There are two main challenges that we need to address: First, we are interested in a fine-grained security annotations to shared memory locations, which are usually modeled as arrays or matrices.
+% %
+% Prior work~\cite{?} assign a single security level to the whole array, i.e., after a single high-security write on a single index of an array, they change the security type of the entire array to high.
+% %
+% While this results in a sound type system, it is too coarse-grained for our application, for which we are interested in identifying, as exact as possible, the locations of the array which may be influenced by a secret. 
+% %
+% The second challenge emerges from the non-deterministic interleaving of warps.
 %
 
-To address the first challenge, we associate a security level to each location in shared memory, and annotate the typing judgment with the warp id, that shows which threads are accessible to each warp, and a mask, that shows an overapproximation for which threads in the warp are ran in the particular branch of the code.
+To address the first challenge, we associate a security level to each location in shared memory, and annotate the typing judgment with the warp id ($\mathsf{wID}$), that identifies a specific warp under consideration, and a predicate ($\mathsf{mask}$),  that provides an overapproximation of which threads in the warp are executing within a particular branch. 
 % 
-Having these information, our type system then would track the changes in the security levels as fine-grained as possible.
+With this information, our type system tracks changes in security levels as fine-grained  as possible.
 %
 For example, if there is a high-secrecy write on the shared memory indexed by a constant, our type system only changes the security annotation of that particular location.
 %
 If there is a high-secrecy write on the shared memory indexed by $\mathsf{tid}$, our type system only changes the security annotation of those shared memory locations that are running inside the current warp and satisfy the condition provided by the current mask.
 
-We generalize the judgment from Thrust 1, task 1.a to be of the form.
+We generalize the judgments for statements to be of the form
 %
 $\Psi; \mathsf{wID};\mathsf{mask};  \Sigma; \pc\vdash s \dashv \Sigma'$.
-
-Where $\Sigma$ and $\Sigma'$ are the pre- and post-context, respectively mapping variables and locations to security variables and concrete levels of the lattice $\mathit{Var} \rightarrow \Psi$.
 %
-They correspond to the  security levels before  and afterrunning $s$ by threads that satisfy $\mathsf{mask}$ in warp $\mathsf{wID}$, respectively.
+Here $\Sigma$ and $\Sigma'$ are the pre- and post-context, respectively, mapping local variables and shared memory locations to security levels.
+%  variables and concrete levels of the lattice $\mathit{Var} \rightarrow \Psi$.
+%
+They correspond to the  security levels before  execution of $s$ and after threads that satisfy $\mathsf{mask}$ in warp $\mathsf{wID}$ execute $s$, respectively.
+%
+% by threads that satisfy $\mathsf{mask}$ in warp $\mathsf{wID}$, respectively.
 %
 % We assume that the types remain the same before and after, but the security levels can change by writng on them.
 %
@@ -41,10 +44,11 @@ The $\pc$ represents the usual ``program counter'' level and serves to capture t
 % 
 We also assume a lattice $\Psi$.
 %
-We fix one lattice and drop $\Psi$ fromthe judgments for clarity.
+We fix one lattice and drop $\Psi$ from the judgments for clarity.
 %
 %
-For the expressions we have the usual typing judgments $\Sigma \vdash e: \tau$ as expressions cannot write to any memory locations.
+For the expressions we have the usual typing judgments $\Sigma \vdash e: \tau$ since expressions cannot write to any memory locations; $\tau$ is the security level associated with $e$ in the context $\Sigma$.
+
 % To account for the low-integrity writes, we consider a taint level consisting of a pair $\langle c, i \rangle$, where $c$ is the security level and $i$ is the integrity level.
 %
 % Each judgment comes with a security level $\mathsf{sec}$, which is the level of security of the kernel, this corresponds to the amount of secret that they are allowed to know.
@@ -52,77 +56,127 @@ For the expressions we have the usual typing judgments $\Sigma \vdash e: \tau$ a
 
 % We provide a more fine-grained security for each element of shared memory.
 %
-Here we list a few sample rules:
-
-Writing an expression of securitry level $\iota$ on a shared location indexed with a constant $c'$, brings the level of $S[c']$ to $\mathsf{pc}\sqcup \iota$, an does not affect the security annotations for the rest of shared memory.
+Next, we propose a few sample rules capturing the above discussion in more detail:
 %
-Where $e$ is not a shared memory location.
+\begin{mathpar}
+    \infer*[Right=]{
+    \Sigma \vdash  e: \iota
+    \\
+    c\,\, \mathit{is}\, \mathit{a \, constant}
+     }{\mathsf{wID}; \mathsf{mask};\Sigma, \pc \vdash S[c]\leftarrow e \dashv \Sigma[S[c]\mapsto \pc \sqcup \iota]}
+    \end{mathpar}
+The above rule states that writing an expression $e$ of security level $\iota$ to a shared memory location indexed by a constant $c$ updates the security level of $S[c]$ to $\mathsf{pc} \sqcup \iota$, without affecting the security annotations of other shared memory locations.
+% 
+Here, we assume that $e$ does not reference any shared memory locations.
 \farzaneh{Does these rules make sense to you? What if shared memory is dynamically allocated?}
-\begin{mathpar}
-\infer*[Right=]{
-\Sigma \vdash  e: \iota
- }{\mathsf{wID}; \mathsf{mask};\Sigma, \pc \vdash S[c']\leftarrow e \dashv \Sigma[S[c']\mapsto \pc \sqcup \iota]}
-\end{mathpar}
 
-
+If the index of the shared memory is not a constant, the static rule cannot precisely determine the exact location being written to. 
+% 
+However, by leveraging the warp ID and the mask, we can provide an overapproximation of the locations that are being written to.
 \begin{mathpar}
     \infer*[Right=]{ \Sigma \vdash e: \iota\\
+    S[i]@\tau \in \Sigma
     % x= \bigsqcup_{i \in \mathsf{wID}\cup \mathsf{mask}}x_i
-     }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash S[\mathsf{tid}]\leftarrow e \dashv \Sigma[S[i]\mapsto \pc \sqcup \iota]_{i \in \mathsf{wID} \cup \mathsf{mask}}}
+     }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash S[e']\leftarrow e \dashv \Sigma[S[i]\mapsto (\pc \sqcup \iota)\sqcup \tau]_{i \in \mathsf{set}(e', \mathsf{wID}, \mathsf{mask})}}
     \end{mathpar}
+% 
+The rule above considers writing an expression $e$ of security level $\iota$ to a shared memory location indexed by an expression $e'$.
+%
+In this case, we build  $\mathsf{set}(e', \mathsf{wID}, \mathsf{mask})$, as a set of all indices that, by overapproximation, may satisfy $e'$. This overapproximation is based on the assumption that any occurence of $\mathsf{tid}$ in $e'$ is restricted to the warp under consideration $\mathsf{wID}$, and the set of (overapproximated) running threads, denoted by $\mathsf{mask}$.
+% 
+In other words, instead of tracking the exact locations indexed by $e'$ dynamically, we conservatively approximate the set of shared memory locations that may be affected by the write, based on the warp ID and the thread mask.
+%
+It then updates the security level of $S[i]$ for any index $i$ in the set $\mathsf{set}(e', \mathsf{wID}, \mathsf{mask})$ to $(\mathsf{pc} \sqcup \iota) \sqcup \tau_i$, where $\tau_i$ is the security level of $S[i]$ before running the statement.
+%
+Note that here we cannot disregard $\tau_i$ and write $\mathsf{pc} \sqcup \iota$ because the index is only an overapproximation, i.e., we must avoid the risk of lowering the sercutiy level, as in runtime,  the contents of $S[i]$ may not be updated.
+%
 
-More generally, we can write
+\farzaneh{TODO: add the if clause rule which updates the mask.}
 
-\begin{mathpar}
-    \infer*[Right=]{ \Sigma \vdash e: \iota\\
-    % x= \bigsqcup_{i \in \mathsf{wID}\cup \mathsf{mask}}x_i
-     }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash S[e']\leftarrow e \dashv \Sigma[S[i]\mapsto \pc \sqcup \iota]_{i \in \mathsf{wID} \cup \mathsf{mask} \cup \mathsf{set}(e')}}
-    \end{mathpar}
-where $\mathsf{set}(e')$ is a set consisting of all threads that can be identified by the expression $e'$. For example, $\mathsf{set}(\mathsf{tid})$ refers to the set consisting of all threads, and $\mathsf{set}(c')$ is a singleton set consisting of thread with identifier $c'$.
 
-\farzaneh{the above rule is not quite true, there should be an intersection involved. or define it as $\mathsf{set}(e',\mathsf{mask}, \mathsf{wID})$}
-\farzaneh{TODO: add the if clause rule.}
 
-For the reads from shared memory, we have:
+% where $\mathsf{set}(e')$ is a set consisting of all threads that can be identified by the expression $e'$. For example, $\mathsf{set}(\mathsf{tid})$ refers to the set consisting of all threads, and $\mathsf{set}(c')$ is a singleton set consisting of thread with identifier $c'$.
 
-\begin{mathpar}
-    \infer*[Right=]{ 
-   \Sigma \vdash S[i]:i_\iota \\
-    \iota= \bigsqcup_{i \in \mathsf{wID}\cup \mathsf{mask} \cup \mathsf{set}(e)}\iota_i
-     }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash X \leftarrow S[e] \dashv \Sigma[X \mapsto \iota \vee \pc]}
-\end{mathpar}
-Where $X$ is not a shared memory.
-When both reading and writing is from shared memory, we can write a similar rule by combining the two above rules.
+% \begin{mathpar}
+%     \infer*[Right=]{ \Sigma \vdash e: \iota\\
+%     % x= \bigsqcup_{i \in \mathsf{wID}\cup \mathsf{mask}}x_i
+%      }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash S[\mathsf{tid}]\leftarrow e \dashv \Sigma[S[i]\mapsto \pc \sqcup \iota]_{i \in \mathsf{wID} \cup \mathsf{mask}}}
+%     \end{mathpar}
+
+% More generally, we can write
+
+% \begin{mathpar}
+%     \infer*[Right=]{ \Sigma \vdash e: \iota\\
+%     % x= \bigsqcup_{i \in \mathsf{wID}\cup \mathsf{mask}}x_i
+%      }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash S[e']\leftarrow e \dashv \Sigma[S[i]\mapsto \pc \sqcup \iota]_{i \in \mathsf{wID} \cup \mathsf{mask} \cup \mathsf{set}(e')}}
+%     \end{mathpar}
+
+
+% \farzaneh{the above rule is not quite true, there should be an intersection involved. or define it as $\mathsf{set}(e',\mathsf{mask}, \mathsf{wID})$}
+
+
+% For the reads from shared memory, we have:
+
+% \begin{mathpar}
+%     \infer*[Right=]{ 
+%    \Sigma \vdash S[i]:i_\iota \\
+%     \iota= \bigsqcup_{i \in \mathsf{wID}\cup \mathsf{mask} \cup \mathsf{set}(e)}\iota_i
+%      }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash X \leftarrow S[e] \dashv \Sigma[X \mapsto \iota \vee \pc]}
+% \end{mathpar}
+% Where $X$ is not a shared memory.
+% When both reading and writing is from shared memory, we can write a similar rule by combining the two above rules.
 % \begin{mathpar}
 %     \infer*[Right=]{ \Sigma \vdash e: \iota\\
 %     x= \bigsqcup_{i \in \mathsf{wID}\cup \mathsf{mask}}x_i
 %      }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash S[\mathsf{tid}]\leftarrow e \dashv \Sigma, S[1]:x \vee \pc, \cdots, S[n]:x \vee \pc}
 %     \end{mathpar}
 
+To address the second challenge, regarding interleaving of warps, we need to combine the static typing judgments  for each individual warp into an analysis that accounts for how warps interact during execution.
+%
+To do this, we first break the code into several segments,  separated by synchronization points $\mathit{sync-threads}$.
+%
+Each segment represents a portion of code where threads within different warps can be run in any order of interleaving.
+%
+No warp can proceed further until all warps have completed their execution of the current segment. 
+%
+We then establish taint tracking for each individual warp $\mathsf{wID}$ and each segment of the code $s_j$, by building the derivation for the judgment
+$\mathsf{wID};\mathsf{true};  \Sigma; \mathsf{Low}\vdash s_j \dashv \Sigma'$, starting from the mask $\mathsf{true}$ (indicating that all threads in the warp are active) and an initial program counter $\mathsf{Low}$. 
+%
+The goal is to combine these derivations to calculate a final context for the entire program, which reflects an overapproximation of the security state when the kernel execution terminates.
+%
+If the final context has low-security levels across all shared memory locations, we can prove that the EoK attack cannot happen. 
 
-    To account for the interleaving of warps, we use the static typing rules as a function $\mathsf{static-type}$ from the initial context $\Sigma$, the warpid $\mathsf{wID}$, and the $i$-th segment code.
+To combine the derivations, we model the typing judgment $\mathsf{wID};\mathsf{true};  \Sigma; \mathsf{Low}\vdash s_j \dashv \Sigma'$ as a function $\mathsf{static-type} (\mathsf{wID}, \Sigma, s)$ from the pre-context $\Sigma$, the warp id $\mathsf{wID}$, and the $j$-th segment of the code to the post context $\Sigma'$.
     %
-    The locations in $\Sigma$ are all considered to be of a variable type.
+We build the pre-context $\Sigma$ by attaching a security type variable to all memory locations, making the derivations polymorphic in the security level of their pre-context.
+    % %
+    % $\Psi; \mathsf{wID}; \mathsf{true};  \Sigma; \mathsf{Low}\vdash s_i \dashv \Sigma'$.
+    % %
+    % The function $\mathsf{static-type} (\mathsf{wID}, \Sigma, s_i)$ returns the context $\Sigma'$.
+    % %
+    For each segment $s_j$, we consider all possible permutations of warps, and calculate the result of an iterative application of function $\mathsf{static-type}$ based on each permutation. 
     %
-    $\Psi; \mathsf{wID}; \mathsf{true};  \Sigma; \mathsf{Low}\vdash s_i \dashv \Sigma'$.
+    The first input ($\mathsf{wID}$) for the $k$-th iteration of the function is the warp id of the $k$-th warp in the permutation.
     %
-    The function $\mathsf{static-type} (\mathsf{wID}, \Sigma, s_i)$ returns the context $\Sigma'$.
+    Moreover, the post-context of the $k$-th iteration (for the $k$-th warp in the permutation) serves as the pre-context of the $k+1$-th iteration.
     %
-    Using the function, we want to find all possible permutations of warps for each  segment, such that the input contex of the next warp is the output of the static typing for the previous warp.
+    This chaining ensures that the taint propagation correctly reflects the order of execution of the warps, as each warp's execution can potentially affect the subsequent warp's execution in a way that modifies the shared memory's security levels.
+    % 
+    % By applying $\mathsf{static-type}$ iteratively across each permutation of warps, we track the effect of all possible interleavings.
+
+    We calculate the post-context of each permutation and each segment using a dynamic algorithm implementation.
     %
-    We plan to calculate the result of each interleaving using a dynamic algorithm.
+    The final post-context for each segment will be the join of the post-context of all permutations (the worst case scenario).
     %
-    The final result for each segment then will be the joint of the output of all possible interleavings (the worst case scenario).
-    %
-    Then we put the results of each segments together and find the final result of all.
-    %
-    The input of the first warp of the first segment has to be assumed to be all low security.
-    %
-    This means that if the victim reads from a key left over by the attacker, then the ciphertext is also of a low security.
-    \farzaneh{I have to think about this more. I feel like we do need some integrity level.} 
+    Once the post-contexts for all segments have been computed, we combine the results of each segment to determine the overall final context for the entire program. 
+    % The input of the first warp of the first segment has to be assumed to be all low security.
+    % %
+    % This means that if the victim reads from a key left over by the attacker, then the ciphertext is also of a low security.
+    % \farzaneh{I have to think about this more. I feel like we do need some integrity level.} 
     
-We assume that the code cannot synchronize inside an if clause. The code can be separated into several segments between which there is a thread synchronize.
+\farzaneh{is it ok?}We assume that the code cannot synchronize inside an if clause. The code can be separated into several segments between which there is a thread synchronize.
 
+\farzaneh{is it ok?}
 For this approach we need to know how many warps will be allocated.
 (Or have an upper bound on it.)
 

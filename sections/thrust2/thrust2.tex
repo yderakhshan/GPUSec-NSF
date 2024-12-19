@@ -1,4 +1,5 @@
 \subsection{Motivating Example}
+\farzaneh{merge with Section 3.}
 % \farzaneh{move to the intro if needed: GPU memory is split into several regions, onchip and off-chip. On-chip memory consists of registers,
 % caches, and shared memory.
 % Off-chip memory
@@ -135,13 +136,31 @@ This is especially concerning when dealing with an active attacker on the GPU, w
 
 
 \subsection{Proposed work}
-We propose two approaches to prevent this kind of attack.
+This thrust focuses on addressing EoK and EoC attacks as described in Section~\ref{sec:motivating}.
 %
-In Task 2.a, we propose an approach based on static information flow control analysis.
+% We provide a brief overview of the main challenges in mitigating such attacks.
 %
-We design a flow-sensitive taint tracking system that captures the flow of sensitive data throughout the program and memory locations statically via taint levels.
+We propose designing a flow-sensitive information flow control system to capture the taint level propagation by running each warp.
 %
-Compared to Thrust 1, in this thrust, we need to consider the interleaving between multiple warps within a block (which share the shared memory) and multiple blocks within a kernel (which share global memory).
+A flow-sensitive system allows the confidentiality level,
+i.e., security type, of variables and locations to change while running or typing the program. 
+%
+For example, after each high-security write on a particular location, the security level associated to the location increases to at least the security level of the secret.
+%
+There are two main challenges in addressing such attacks.
+
+
+\paragraph{Challenge 1: Fine-grained security annotations for indexed arrays.}
+%
+We are interested in a fine-grained security annotations to shared and global memory locations, which are usually modeled as arrays or matrices.
+%
+Prior work~\cite{?} assign a single security level to the whole array, i.e., after a single high-security write on a single index of an array, they change the security type of the entire array to high.
+%
+While this results in a sound type system, it is too coarse-grained for our application, for which we are interested in identifying, as exact as possible, the locations of the array which may be influenced by a secret. 
+
+
+\paragraph{Challenge 2: Non-deterministic interleaving of warps and blocks.}
+To address the EoK and EoC attacks we need to consider the interleaving between multiple warps within a block (which share the shared memory) and multiple blocks within a kernel (which share global memory).
 % %
 % This imposes a challenge, as the warps withing a block and blocks within a kernel can be interleaved by a scheduler.
 %
@@ -151,6 +170,12 @@ As a result, we must assume that any interleaving of warps and blocks is valid.
 % 
 We model the system with a non-deterministic scheduler and aim to prove that, for any possible interleaving of warps and blocks, the program is secure.
 
+We propose two approaches to address the above challenges.
+%
+In Task 2.a, we propose an approach based on static information flow control analysis.
+%
+We design a flow-sensitive taint tracking system that captures the flow of sensitive data throughout the program and memory locations statically via taint levels.
+%
 While this static approach is low-cost, it only provides an over-approximation of the security guarantees. 
 % 
 For example, when two warps both access the same shared memory location—one for reading and the other for writing—the static analysis must assume that if the write is high-security, the read is considered tainted. 
@@ -164,7 +189,7 @@ In Task 2.b, we address the limitations of the static analysis approach by incor
 %
 To achieve this, we propose using static analysis for each warp (with respect to shared memory) and each block (with respect to global memory) to establish the sensitive flow of information in these units.
 %
-The we design a dynamic monitoring to track the actual interleaving of warps and blocks at runtime.
+Then we design a dynamic monitoring to track the actual interleaving of warps and blocks at runtime.
 % 
 The dynamic taint tracking hardware monitor should detect potential insecure memory accesses, either preventing them or raising an alarm.
 % 
@@ -173,9 +198,9 @@ Additionally, this monitor can sanitize sensitive (tainted) data objects at the 
 %
 % We plan to use static analysis for each warp and each block and then capture the interleaving using the dynamic monitor.
 
-In Task 2.c, we plan to implement a Taint Analysis Framework based on the ideas of Tasks 2.a and 2.c using OCAML.
+In Task 2.c, we plan to implement a Taint Analysis Framework based on the ideas of Tasks 2.a and 2.b using OCAML.
 \farzaneh{I'm not sure about this.}
-
+\farzaneh{Should we only focus on the shared memory?}
 In the proposal we describe our ideas based on the EoK attacks in the time-sharing setting. 
 % In thrust 1, we propose an approach based on a static information flow control analysis in which we control the flow.
 % %
