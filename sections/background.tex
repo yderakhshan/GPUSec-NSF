@@ -1,7 +1,7 @@
 \label{sec:background}
-In this section, we discuss the GPU execution model, focusing on characteristics that lead to the vulnerabilities we propose to study.
+In this section, we discuss the GPU execution model, focusing on characteristics that lead to vulnerabilities we propose to study.
 %
-We also discuss related work on formal models of CUDA and security for GPU programs.
+We also discuss prior work on formal models of CUDA and security for GPU programs.
 % Extras: 
 
 % One prominent task is inference of neural networks, which process vast amounts of personal data, such as audio, text or images.
@@ -120,8 +120,88 @@ We plan to use MiniCUDA as the basis of our language model, and the semantics an
 %
 Muller and Hoffmann's implementation of the quantitative program logic, called RaCUDA, can also serve as a starting point for our implementation of the type system.
 
+\farzaneh{Are there any particular citations that we can add for the above discussion?}
+
 \paragraph{Related works on GPU security.}
 \stefan{TODO Farzaneh: complete}
+
+\paragraph{Symbolic GPU security.}
+~\cite{horga2022JSA}
+
+Static detection of uncoalesced accesses in GPU programs
+GKLEE: concolic verification and test generation for GPUs
+Detecting bank conflict of GPU programs using symbolic execution—Case study
+The design and implementation of a verification technique for GPU kernels
+SMT-based context-bounded model checking for CUDA programs
+Specification and verification of GPGPU programs
+
+
+\paragraph{GPU performance.}
+Genetic algorithm based estimation of non–functional properties for GPGPU programs: has targeted such a side channel through the use of genetic-algorithm-powered test input generation.
+S. Hong, H. Kim, An analytical model for a GPU architecture with memory-level and thread-level parallelism awareness, in: Proceedings of the 36th Annual
+S.S. Baghsorkhi, M. Delahaye, S.J. Patel, W.D. Gropp, W.-m.W. Hwu, An adaptive performance modeling tool for GPU architectures, in: Proceedings of the 15th ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming, 2010, pp. 105-114.
+Predicting GPU performance from CPU runs using machine learning
+A comparison of GPU execution time prediction using machine learning and analytical modeling
+A performance model for GPUs with caches
+
+
+
+% \subsection{Prior work}
+% Prior work has explored various approaches to prevent these vulnerabilities, taking into account both the private information stored in shared memory and that in global memory.
+% %
+\paragraph{Leakage via shared and global memory.} Pietro et al.~\cite{pietro2016TECS} proposed to rewrite the code such that it zeroizes all leftover data in shared memory after kernel execution terminates.
+%
+They demonstrated this approach with a sample program that calculates the sum of two vectors.
+%
+Additionally, they implemented a zeroizing function within the CUDA runtime to clear all global memory after the context ends.
+%
+In their experiments, they found that the overhead of zeroizing shared memory was negligible for the sample program.
+%
+However, the overhead of zeroizing global memory through the CUDA runtime was not negligible.
+%
+Even if the overhead for zeroizing might be low, their approach prevents low-security data from remaining in shared memory when necessary; it forces the user to transfer the low-security data between CPU and GPU for each kernel execution, disrupting performance optimizations related to data locality and defeating the purpose of GPU programming.
+%
+
+%
+% Furthermore, their approach toward zeroizing shared memory is somewhat ad-hoc, relying completely on the programmer to rewrite the program to zeroize the shared memory location.
+% %
+
+% The overhead of zeroizing might be low (how much?) but still it doesn't allow low security ones to remain in the shared memory, when one needed.
+%
+
+\paragraph{Dynamic taint tracking for leakage via global memory.} Hayes et al.~\cite{hayes2017usenix}, introduced a dynamic taint tracking approach as a complementary measure to identify memory locations tainted with sensitive data.
+%
+They then use that taint information either to trigger an alarm whenever there is an aunauthorized access to such tainted memory or to zeroize the tainted locations in shared (resp. global) memory after the kernel (resp. context) terminates.
+%
+Dynamic taint tracking is known to be an expensive procedure. 
+%
+Hayes et al. optimized it by leveraging GPU-specific features, such as eliminating certain instructions working with runtime parameters and constants from taint tracking, as well as utilizing the large GPU register file.
+%
+These optimizations significantly reduced the overhead compared to CPU-based taint-tracking algorithms,  achieving a 5-20x speedup across a range of applications.
+%
+Despite these improvements, the approach still incurs a 5\%-13\% performance penalty, particularly when dealing with shared memory.
+
+% However, none of the prior work address the integrity aspect of the attack, where an attacker could leave malicious data behind in shared memory, potentially compromising the system’s security.
+
+% None of the prior work considers that low-integrity writes can be as malicious to security as low-security reads.
+% %
+% This is especially concerning when dealing with an active attacker on the GPU, who can injects data into memory to force leaking sensitive information,  e.g., an attacker can rewrite the cipherkey behind in shared memory and observe the resulting ciphertext.
+
+
+\paragraph{Relational Hoare Logic.}
+\farzaneh{Put more here based on Amal and Jan's RHL.}
+
+
+\paragraph{Quantitaive security analysis}
+
+\paragraph{Static and dynamic taint tracking}
+
+\paragraph{CPU timing channels}
+Automatic quantification of cache side-channels, Cacheaudit: A tool for the static analysis of cache side channels, Multi-run side-channel analysis using symbolic execution and max-SMT, Quantifying the information leakage in cache attacks via symbolic execution
+
+
+
+\farzaneh{I'm not sure what the following refers to. drop?}
 (With a microbenchmark they measured the
 time for a sequence of memory accesses of each thread in a block.)
 %
@@ -133,7 +213,3 @@ collect a single timing value for the multiple blocks.
 Although many successful attack methods have been
 demonstrated on CPU platforms, these methods cannot be directly applied to the GPU platform due to a
 lack of accurate timing information and nondeterminism in thread scheduling.
-
-\paragraph{Symbolic GPU security.}
-
-

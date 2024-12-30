@@ -1,70 +1,98 @@
 \subsubsection{Task 2.b} 
-The static algorithm above can be too restrictive since it has to consider all possible interleavings of warps, while in runtime, depending on the scheduler, only some of these interleavings may actually happen. 
+The static algorithm above can be too restrictive since it does not have access to runtime values and also has to consider all possible interleavings of warps, while in runtime, depending on the scheduler, only some of these interleavings may actually happen. 
 %
-(\farzaneh{is this true?})
-In this task, we plan to build a flow-sensitive dynamic runtime monitor
-that works on top of the static type system above.
+In this task, we plan to build a flow-sensitive hybrid runtime monitor inspired by Russo and Sabelfeld~\cite{russo2010CSF}
+that also accpets all statically typed programs in Task 2a.
 %
-This means that we still use the function $\mathsf{static-type}$ as described in the previous task for each segment of the code and  each warp, but use a dynamic monitor to track the actual interleavings of warps and find the real permutation of the functions for each segment.
 
 We plan to model the dynamic monitor using a set of operational semantics rules.
 %
-The rules work on the configuration of the form $\langle s, \sigma \rangle \mid \langle R,C \rangle  \mid_\mu  \Sigma$, where $s$ is the running code representing a sequence of segments being executed in order, $\sigma$ is the runtime memory state, which assigns values to locations,  $\Sigma $ is the state of the monitor, which  assigns security levels to locations, $R$ is the queue of warps ordered by the scheduler that are currently waiting to run the current segment, and $C$ is the set of warps that have already completed running the current segment.
+The rules work on the configuration of the form $\langle (s_1, \cdots, s_n); s, \sigma \rangle  \mid \langle \Sigma, (\Sigma_1, \cdots, \Sigma_n)\rangle$, where $s_k$ represents the running code on the warp $\mathsf{wID}_k$ for the current seqment, $s$ is the running code representing a sequence of segments being executed after the current segment is complete, $\sigma$ is the runtime memory state, which assigns values to locations,  $\Sigma $ is the state of the monitor, which  assigns security levels to locations, 
+and $\Sigma_k$ is a dynamic version of the pc level that tracks the nested conditional branches for each warp $\mathsf{wID}_k$.
+% $R$ is the queue of warps ordered by the scheduler that are currently waiting to run the current segment, and $C$ is the set of warps that have already completed running the current segment.
 %
-\farzaneh{what is $\mu$? events of the monitor.}
+% \farzaneh{what is $\mu$? events of the monitor.}
 
 The monitor's role is to track the propagation of security levels, updating the state as the program executes.
 %
-However, for each segment and each warp, instead of tracking such propagation dynamically, we use the static typing function $\mathsf{static-type}$.
-%
-If the scheduler executes $\mathsf{wID}$ to run segment $s_j$, we update the state of the monitor via $\Sigma'=\mathsf{static-type}(\mathsf{wID}, \Sigma, s_j)$, where $\Sigma$ is the pre-state and $\Sigma'$ is the post-state.
+% However, for each segment and each warp, instead of tracking such propagation dynamically, we use the static typing function $\mathsf{static-type}$.
+% %
+% If the scheduler executes $\mathsf{wID}$ to run segment $s_j$, we update the state of the monitor via $\Sigma'=\mathsf{static-type}(\mathsf{wID}, \Sigma, s_j)$, where $\Sigma$ is the pre-state and $\Sigma'$ is the post-state.
 % %
 The following rule models this idea.
 % The monitor state  $\Sigma$ is updated as warps modify shared memory locations.  For example, if a warp writes to a shared memory location, the monitor may increase the security level of that location depending on the security level of the contents (e.g., if it writes high-security data, the memory location's security level will be updated to high).
 
 
-\begin{mathpar}
+{\small\begin{mathpar}
     \infer*[Right=]{
-       R= \mathsf{wID};R'\\ 
-       {\mathsf{wID}}   \vdash \langle s_j, \sigma \rangle \Downarrow\langle \mathsf{skip}, \sigma' \rangle \\
-       \Sigma'=\mathsf{static-type}(\mathsf{wID}, \Sigma, s_j)
-     }{\langle s_j;\bar{s}, \sigma \rangle \mid \langle R, C\rangle \mid_\mu  \Sigma\,\, \rightarrow\,\, \langle s_j;\bar{s}, \sigma' \rangle \mid \langle R', \mathsf{wID};C\rangle \mid_\mu  \Sigma'\,}
+       \langle s_k, \sigma \rangle \rightarrow_\alpha \langle s'_k, \sigma' \rangle  \\
+       \alpha \vdash \langle \Sigma, \Sigma_k \rangle \rightarrow_\delta \langle \Sigma', \Sigma'_k \rangle
+     }{\langle (s_1, \cdots s_k \cdots, s_n); s, \sigma \rangle  \mid \langle \Sigma, (\Sigma_1,\cdots \Sigma_k \cdots, \Sigma_n)\rangle\,\,\rightarrow_\delta \,\,\langle (s_1, \cdots s'_k \cdots, s_n); s, \sigma' \rangle  \mid \langle \Sigma', (\Sigma_1, \cdots \Sigma'_k \cdots, \Sigma_n)\rangle}
 \end{mathpar}
-
-When all warps complete a particular segment, we continue with the rest of the segments, without changing the state of the monitor.
+}
+The rule chooses to execute an instruction from warp $\mathsf{wID}_k$. 
 %
-The queue of the warps for the next segment is determined by the scheduler.
-\begin{mathpar}
-    \infer*[Right=]{
-        R= \mathit{Schedule}(C)
-      }{\langle s;\bar{s}, \sigma \rangle \mid \langle \epsilon, C\rangle \mid_\mu  \Sigma\,\, \rightarrow\,\, \langle \bar{s}, \sigma \rangle \mid \langle R;\epsilon \rangle \mid_\mu  \Sigma\,}
-\end{mathpar}
+The first premise is defined straightforward using a small-step semantics on a pair of code $s_k$ and memory state $\sigma$, and $\alpha$ is the summary of action taken by this step.
+%
+The action $\alpha$ will be used to update the state of the monitor in the second premise.
+%
+% $\delta$ in the second premise is the action of the monitor.
+ %
+For example if the next immediate step of $s_k$ is to write expression $e$ on location $S[10]$ in shared memory, the action $\alpha$ would be $w(e, S[10])$. In the second premise, the state of the monitor is updated by computing the read footprint of $e$. Based on the security level of the locations in this footprint and the current state of $\Sigma'_k$, the monitor adjusts the security level of $S[10]$ in $\Sigma$. 
+%
+If the next immediate step of $s_k$ is to execute an if-clause and take the first branch $s_1$, for example, the action $\alpha$ would be $b(e, s_2)$, where $e$ is the condition of the branch and $s_2$ is the second branch.
+%
+The monitor uses the statically calculated read footprint of $e$ and the write footprint of $s_2$, and updates the state of $\Sigma'_k$ accordingly.
+%
+Specifically, if $e$ accesses any high-secrecy location, the monitor temporarily retains the locations in the write footprint of $s_2$ in the stack until the end of the branch. Once the branch completes, the security level of these locations is updated to high.
+%
+This approach helps prevent indirect leaks through non-executed branches, as discussed in \cite{russo2010CSF}.
 
-The rule ensures that the kernel terminates only when every shared memory location is non-tainted; the monitor verifies that all shared memory locations are annotated with a security level of $\mathsf{Low}$.
+% More interestingly, if the next immediate step of $s_k$ is to execute an if-clause taking the first branch $s_1$, for example, the  
 
-\begin{mathpar}
+When all warps complete a particular segment, we continue with the rest of the next immediate segment $s'$ without changing the state of the monitor. In the following rule, $\mathsf{stop}$ and $\overline{\emptyset}$ state that all warps completed the code of the segment, and none of them is inside a branch, respectively. 
+{\small \begin{mathpar}
     \infer*[Right=]{
-     \forall S[i]:\iota \in \Sigma.\, \iota \sqsubseteq \mathsf{Low}   
-      }{\langle \mathsf{skip}, \sigma \rangle \mid \langle R, C\rangle \mid_\mu  \Sigma\,\, \rightarrow\,\, \langle \mathsf{stop}, \sigma \rangle \mid \langle R;C \rangle \mid_{\mu;\mathsf{secure}}  \Sigma\,}
+      }{\langle \overline{\mathsf{stop}};(s';\mathit{sync-threads};\, s), \sigma \rangle  \mid  \langle \Sigma, \overline{\emptyset}\rangle\,\, \rightarrow\,\, \langle (s', \cdots , s'); s, \sigma \rangle  \mid  \langle \Sigma, \overline{\emptyset} \rangle}
 \end{mathpar}
+}
+Finally, the rule below ensures that the kernel terminates only when every shared memory location is non-tainted; the monitor verifies that all shared memory locations are annotated with a security level of $\mathsf{Low}$.
+
+{\small\begin{mathpar}
+  \infer*[Right=]{
+    \forall S[i]:\iota \in \Sigma.\, \iota \sqsubseteq \mathsf{Low} 
+    }{\langle \overline{\mathsf{stop}};\cdot, \sigma \rangle  \mid  \langle \Sigma, \overline{\emptyset}\rangle\,\, \mathsf{success}}
+\end{mathpar}
+}
 
 If the condition of having low-security levels across all shared memory locations does not hold, we can design the monitor to either raise an alarm or take corrective action by zeroizing the tainted memory locations. 
+%
+Alternatively, the monitor could prevent future access to such tainted memory locations by restricting their access to any kernel outside the application, effectively isolating the sensitive data from potential attackers.
+%
+Similarly, we will design rules to mitigate the EoC attack concerning the global memory.
+
+
+We prove that our dynamic monitor is sound, i.e., given two low-equivalent initial memory states, if the first run of the program generates a final state, then there exists a possible execution of the second run that produces an identical final state. 
+%
+This result is weaker than the result we aim to prove for the static analysis, as it relies on an existential quantifier for the second run, whereas the static analysis uses a universal quantifier, considering all possible interleavings of threads or warps.
+%
+We also formally prove that all programs that are well-typed in the static analysis are dynamically secure.
+
 % 
 % Raising an alarm would notify the system or the user that a security violation may occurr.
 % % 
 % In the latter approach, 
 % Alternatively, we can design the monitor to take action to zeroize the tainted memory locations.
 %
-If not done carefully, the latter approach can be a source of implicit flows. 
+% If not done carefully, the latter approach can be a source of implicit flows. 
+% %
+% In particular, if the monitor simply writes a random constant on the tainted location which is not possible for any given secret, the attacker knowing the pre-state can infer a secret based on which location is zeroized.
 %
-In particular, if the monitor simply writes a random constant on the tainted location, the attacker can infer a secret based on which a location might be zeroized or not.
-
-
 % still observe the difference between the value written by the monitor and what she expected if the secret was something else and the memory locations end up not needing to be zeroized.
 
-Same ideas hold for the global memory.
-It will be interesting to mix shared and global memory.
-\farzaneh{do we need more discussion on this?}
+% Same ideas hold for the global memory.
+% It will be interesting to mix shared and global memory.
+% \farzaneh{do we need more discussion on this?}
 
-\farzaneh{We can also propose a hybrid dyamic-static monitor for the warp-level. Should we? See~\cite{russo2010CSF}}
+% \farzaneh{We can also propose a hybrid dyamic-static monitor for the warp-level. Should we? See~\cite{russo2010CSF}}
 

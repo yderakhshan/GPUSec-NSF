@@ -1,3 +1,4 @@
+\subsection{Proposed work}
 \subsubsection{Task 2.a.} 
 % We first focus on warps/shared memory.
 % %
@@ -5,49 +6,91 @@
 %
 We propose designing a flow-sensitive information flow control type system a la Hunt and Sands\cite{hunt2006popl}  to capture the taint level propagation by running each warp.
 %
-A flow-sensitive type system allows the confidentiality level,
-i.e., security type, of variables and locations to change while typing the program. 
+A flow-sensitive type system allows adjusting the security levels of memory locations while typing the program.
 %
-For example, after each high-security write on a particular location, the security level associated to the location increases to at least the security level of the secret.
-%
-% There are two main challenges that we need to address: First, we are interested in a fine-grained security annotations to shared memory locations, which are usually modeled as arrays or matrices.
-% %
-% Prior work~\cite{?} assign a single security level to the whole array, i.e., after a single high-security write on a single index of an array, they change the security type of the entire array to high.
-% %
-% While this results in a sound type system, it is too coarse-grained for our application, for which we are interested in identifying, as exact as possible, the locations of the array which may be influenced by a secret. 
-% %
-% The second challenge emerges from the non-deterministic interleaving of warps.
+For example, after writing data on a particular location, the security level associated with the location increases to at least the security level of the data.
 %
 
-To address the first challenge, we associate a security level to each location in shared memory, and annotate the typing judgment with the warp id ($\mathsf{wID}$), that identifies a specific warp under consideration, and a predicate ($\mathsf{mask}$),  that provides an overapproximation of which threads in the warp are executing within a particular branch. 
+To address the first challenge, we associate a security level to each location in shared memory and global memory, and annotate the typing judgment with the warp id ($\mathsf{wID}$), that identifies a specific warp under consideration, and a predicate ($\mathsf{mask}$), that provides an overapproximation of which threads in the warp are executing within a particular branch. 
 % 
 With this information, our type system tracks changes in security levels as fine-grained  as possible.
-%
-For example, if there is a high-secrecy write on the shared memory indexed by a constant, our type system only changes the security annotation of that particular location.
-%
-If there is a high-secrecy write on the shared memory indexed by $\mathsf{tid}$, our type system only changes the security annotation of those shared memory locations that are running inside the current warp and satisfy the condition provided by the current mask.
+% %
+% For example, if there is a high-secrecy write on the shared memory indexed by a constant, our type system only changes the security annotation of that particular location.
+% %
+For example, if there is a high-secrecy write on the shared memory indexed by $\mathsf{tid}$, our type system only changes the security annotation of those shared memory locations that are running inside the current warp and satisfy the condition provided by the current mask.
 
-We generalize the judgments for statements to be of the form
+
+To address the second challenge regarding the interleaving of warps and blocks, we propose collecting an over-approximation of the read and write memory footprints for each warp and ensuring that these accesses do not result in undefined behavior due to a data race.
 %
-$\Psi; \mathsf{wID};\mathsf{mask};  \Sigma; \pc\vdash s \dashv \Sigma'$.
+Given the unique parallelization paradigm of GPUs, where all warps run the same code and can be interleaved until reaching synchronization points, i.e., $\mathit{sync-threads}$, we can structure the program analysis to track and handle these interleavings effectively.
+As such, we can separate the code into several segments, separated by synchronization points $\mathit{sync-threads}$. 
 %
-Here $\Sigma$ and $\Sigma'$ are the pre- and post-context, respectively, mapping local variables and shared memory locations to security levels.
+We ensure that synchronization points are placed outside any conditional branches, allowing for precise segmentation.
+%
+The warps can be interleaved freely within a segment but must synchronize before moving to the next segment.
+We propose breaking the code into multiple segments, separated by synchronization points.
+%
+We then focus on the memory footprints of each segment for each warp. 
+%
+In particular, we track the read and write memory accesses for each segment and warp and ensure that write footprints do not overlap with the read or write footprints of other warps within the same segment. 
+%
+Read footprints can overlap since concurrent reads do not cause data races.
+% The red annotations in the above rules show show we collect such footprints.
+% we need to combine the static typing judgments  for each individual warp into an analysis that accounts for how warps interact during execution.
+%
+
+
+%
+
+%
+% The core does fast switching between warps when warp has to wait for data for example.
+%
+% This can be a source for data race, which results in an undefined behavior.
+%
+% This can comlicate the dynamic taint tracking analysis when there are two accesses to a single location and at least one of them is a write.
+%
+% One reason is for the simple fact that in the presence of data race all possible cimbinations are available.
+%
+% The other reason which complicates it even further is that CUDA has weak memory model, meaning that we cannot rely on the sequential consistency in these cases either.
+%
+% As such, in this task, we propose collecting an over-approximation of footprints for each warp and ensuring that they do not result in an underfined behavior.
+%
+% For each segment, we make sure that the write footprints of each warp does not overlap with the read and write footprint of the others; two read footprints can overlap.
+% %
+% The red annotations in the above rules show show we collect such footprints.
+
+
+% We generalize the judgments for statements to be of the form
+% %
+% $\Psi; \mathsf{wID};\mathsf{mask};  \Sigma; \pc\vdash s \dashv \Sigma'$.
+% %
+
+To formally model the above ideas, we generalize the judgments for statements to be of the form
+$\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash s  \dashv \Sigma'; \delta_\mathsf{write}; \delta_\mathsf{read}$.
+%
+Here $\Sigma$ and $\Sigma'$ are the pre- and post-context, respectively, mapping local variables, shared memory, and global memory locations to security levels.
+%
+They correspond, respectively, to the security levels before and after the execution of the statement $s$ by threads that are in warp $\mathsf{wID}$ and satisfy $\mathsf{mask}$.
+$\mathsf{mask}$ indicates which threads within the warp are active.
+The $\pc$ represents the usual ``program counter'' level and serves to capture the indirect information flows.
+$\delta_\mathsf{write}$ and  $\delta_{\mathsf{read}}$ collect the sets of locations in shared memory that might be accessed during the execution of $s$ by write and read, respectively.
+%
+For the expressions, we propose the  typing judgment $\mathsf{wID}; \mathsf{mask};\Sigma \vdash e: \tau; \delta_{\mathsf{read}}$.  Expressions cannot write to any memory locations and thus we do not need to adjust the security level of  locations in a post context; $\tau$ is the security level associated with $e$ in the context $\Sigma$ and $\delta_{\mathsf{read}}$ denotes the read footprint of $e$.
+
+
 %  variables and concrete levels of the lattice $\mathit{Var} \rightarrow \Psi$.
 %
-They correspond to the  security levels before  execution of $s$ and after threads that satisfy $\mathsf{mask}$ in warp $\mathsf{wID}$ execute $s$, respectively.
-%
+
 % by threads that satisfy $\mathsf{mask}$ in warp $\mathsf{wID}$, respectively.
 %
 % We assume that the types remain the same before and after, but the security levels can change by writng on them.
 %
-The $\pc$ represents the usual ``program counter'' level and serves to capture the indirect infomrmation flows.
 % 
-We also assume a lattice $\Psi$.
+% We also assume a lattice $\Psi$.
+% %
+% We fix one lattice and drop $\Psi$ from the judgments for clarity.
 %
-We fix one lattice and drop $\Psi$ from the judgments for clarity.
 %
-%
-For the expressions we have the usual typing judgments $\Sigma \vdash e: \tau$ since expressions cannot write to any memory locations; $\tau$ is the security level associated with $e$ in the context $\Sigma$.
 
 % To account for the low-integrity writes, we consider a taint level consisting of a pair $\langle c, i \rangle$, where $c$ is the security level and $i$ is the integrity level.
 %
@@ -56,46 +99,84 @@ For the expressions we have the usual typing judgments $\Sigma \vdash e: \tau$ s
 
 % We provide a more fine-grained security for each element of shared memory.
 %
-Next, we propose a few sample rules capturing the above discussion in more detail:
+Next, we propose a few sample rules capturing the above discussion in more detail. 
 %
-\begin{mathpar}
+We start with a simple rule in which the code writes on a shared memory location indexed by a constant and all threads are active ($\mathsf{mask}$ is set to $\mathsf{true}$).
+%
+{\small\begin{mathpar}
     \infer*[Right=]{
-    \Sigma \vdash  e: \iota
+        \mathsf{wID}; \mathsf{true};\Sigma \vdash  e: \iota; \delta_{\mathsf{read}}
     \\
     c\,\, \mathit{is}\, \mathit{a \, constant}
-     }{\mathsf{wID}; \mathsf{mask};\Sigma, \pc \vdash S[c]\leftarrow e \dashv \Sigma[S[c]\mapsto \pc \sqcup \iota]}
-    \end{mathpar}
-The above rule states that writing an expression $e$ of security level $\iota$ to a shared memory location indexed by a constant $c$ updates the security level of $S[c]$ to $\mathsf{pc} \sqcup \iota$, without affecting the security annotations of other shared memory locations.
+     }{\mathsf{wID}; \mathsf{true};\Sigma, \pc \vdash S[c]\leftarrow e \dashv \Sigma[S[c]\mapsto \pc \sqcup \iota]; \{S[c]\} ;\delta_{\mathsf{read}}}
+    \end{mathpar}}
+The above rule states that writing an expression $e$ of security level $\iota$ to a shared memory location indexed by a constant $c$ updates the security level of $S[c]$ to $\mathsf{pc} \sqcup \iota$, where $\sqcup$ is the lattice join operator, without affecting the security annotations of other shared memory locations.
 % 
-Here, we assume that $e$ does not reference any shared memory locations.
-\farzaneh{Does these rules make sense to you? What if shared memory is dynamically allocated?}
+Moreover, the write footprint in the conclusion is the singleton set containing the location $S[c]$ since only $S[c]$ is being written to. The read footprint is the same as $\delta_{\mathsf{read}}$, representing the memory locations accessed during the evaluation of $e$. 
 
-If the index of the shared memory is not a constant, the static rule cannot precisely determine the exact location being written to. 
+% Here, we assume that $e$ does not reference any shared memory locations.
+% \farzaneh{Does these rules make sense to you? What if shared memory is dynamically allocated?}
+
+In a more general setting, where the index of the shared memory is not a constant, the static rule may not precisely determine the exact location being written to. 
 % 
-However, by leveraging the warp ID and the mask, we can provide an overapproximation of the locations that are being written to.
-\begin{mathpar}
-    \infer*[Right=]{ \Sigma \vdash e: \iota\\
+However, we can provide a conservative overapproximation of the locations being written to by leveraging the warp ID ($\mathsf{wID}$) and $\mathsf{mask}$.
+{\small\begin{mathpar}
+    \infer*[Right=]{ \mathsf{wID}; \mathsf{mask};\Sigma \vdash e: \iota; \delta_{\mathsf{read}}\\
     S[i]@\tau \in \Sigma
     % x= \bigsqcup_{i \in \mathsf{wID}\cup \mathsf{mask}}x_i
-     }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash S[e']\leftarrow e \dashv \Sigma[S[i]\mapsto (\pc \sqcup \iota)\sqcup \tau]_{i \in \mathsf{set}(e', \mathsf{wID}, \mathsf{mask})}}
+     }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash S[o]\leftarrow e \dashv \Sigma[S[i]\mapsto \pc \sqcup \iota]_{i@\mathsf{MustW} \in \mathsf{set}(o, \mathsf{wID}, \mathsf{mask})}; \quad \mathsf{set}(o, \mathsf{wID}, \mathsf{mask}) ;\delta_{\mathsf{read}}\\ \qquad\qquad\quad\;\,[S[i]\mapsto (\pc \sqcup \iota)\sqcup \tau_i]_{i@\mathsf{MayW} \in \mathsf{set}(o, \mathsf{wID}, \mathsf{mask})}}
+    \end{mathpar}}
+% 
+The rule above types writing an expression $e$ of security level $\iota$ to a shared memory location indexed by an expression $o$.
+%
+Here, we assume that $o$ does not reference any shared memory locations, and thus, its read footprint is empty.
+%
+We construct  $\mathsf{set}(o, \mathsf{wID}, \mathsf{mask})$ as a set of all indices that may be referenced by $o$, considering that any occurrence of $\mathsf{tid}$ in $o$ is restricted to the warp $\mathsf{wID}$ and the active threads indicated by $\mathsf{mask}$. 
+%
+For example, $\mathsf{set}(\mathsf{tid}, 2, \mathsf{true})$ consists of indices $32-63$.
+%
+In this particular example, we can construct the set of all written indices exactly.
+%
+However, in general, some elements of the set are included only as a conservative approximate.
+%
+To distinguish between locations that are definitely written to and those that may be written to, we introduce two tags, $\mathsf{MustW}$ and $\mathsf{MayW}$, respectively.
+%
+For each index $i$ in $\mathsf{set}(o, \mathsf{wID}, \mathsf{mask})$, the rule updates the security level based on the tag associated with $i$.
+%
+If $i$ is a must-write ($\mathsf{MustW}$), it updates the security level to $\mathsf{pc} \sqcup \iota$, and if it is a may-write ($\mathsf{MayW}$), it updates the security level to $(\mathsf{pc} \sqcup \iota) \sqcup \tau_i$, where $\tau_i$ is the security level of $S[i]$ before running the statement.
+%
+For locations with the $\mathsf{MayW}$ tag, we cannot disregard $\tau_i$ and write $\mathsf{pc} \sqcup \iota$ because the index is only an overapproximation, i.e., we must avoid the risk of lowering the security level, as in runtime,  the contents of $S[i]$ may not be updated.
+%
+Moreover, the write footprint in the conclusion is $\mathsf{set}(o, \mathsf{wID}, \mathsf{mask})$, and the read footprint is $\delta_{\mathsf{read}}$.
+\farzaneh{please check the above. not sure about all the details.}
+% This overapproximation is based on the assumption that any occurence of $\mathsf{tid}$ in $o$ is restricted to the warp under consideration $\mathsf{wID}$, and the set of (overapproximated) running threads, denoted by $\mathsf{mask}$.
+% % 
+
+We propose the following rule for handling if caluses in our type system. 
+{\small\begin{mathpar}
+    \infer*[Right=]{
+        \mathsf{wID}; \mathsf{mask};\Sigma \vdash  e: \iota; \delta^0_{\mathsf{read}}\\
+        \mathsf{wID}; \mathsf{mask} \wedge e;\Sigma, \pc \sqcup \iota \vdash  s_1 \dashv \Sigma_1;\delta^1_{\mathsf{write}}; \delta^1_{\mathsf{read}}\\
+        \mathsf{wID}; \mathsf{mask} \wedge \neg e;\Sigma_1, \pc \sqcup \iota \vdash  s_2 \dashv \Sigma';\delta^2_{\mathsf{write}}; \delta^2_{\mathsf{read}}
+        % \Sigma'= \Sigma_1 \sqcup \Sigma_2
+     }{\mathsf{wID}; \mathsf{mask};\Sigma, \pc \vdash \mathsf{if}\, e \,\mathsf{then} \,s_1\, \mathsf{else}\, s_2 \dashv \Sigma';\delta^1_{\mathsf{write}} \cup \delta^2_{\mathsf{write}}; \delta^0_{\mathsf{read}} \cup \delta^1_{\mathsf{read}} \cup \delta^2_{\mathsf{read}}}
     \end{mathpar}
-% 
-The rule above considers writing an expression $e$ of security level $\iota$ to a shared memory location indexed by an expression $e'$.
+    }
+    The rule types the conditional expression $e$ and both branches $s_1$ and $s_2$. Given that $e$ is of security type $\iota$, we update the program counter to $\mathsf{pc} \sqcup \iota$, which reflects the security implications of the condition,  when typing $s_1$ and $s_2$. 
+    %
+ Moreover, based on the condition $e$, some threads will execute $s_1$ while others will execute $s_2$. 
+    % 
+ To handle this, we update the thread masks for $s_1$ and $s_2$ judgments to $\mathsf{mask} \wedge e$ and $\mathsf{mask} \wedge \neg e$, respectively.
+    %
+ For example,  $\mathsf{mask} \wedge e$ means that threads satisfying both the condition in the current mask and the condition in $e$ will execute $s_1$. 
+ Note that we do not have access to the runtime value of $e$ and thus can only have an overapproximation of which threads will satisfy $e$ at runtime. This is handled via the ``may writes'' tags, i.e., the access is only a ``may write'' if the mask is overapproximated.
 %
-In this case, we build  $\mathsf{set}(e', \mathsf{wID}, \mathsf{mask})$, as a set of all indices that, by overapproximation, may satisfy $e'$. This overapproximation is based on the assumption that any occurence of $\mathsf{tid}$ in $e'$ is restricted to the warp under consideration $\mathsf{wID}$, and the set of (overapproximated) running threads, denoted by $\mathsf{mask}$.
-% 
-In other words, instead of tracking the exact locations indexed by $e'$ dynamically, we conservatively approximate the set of shared memory locations that may be affected by the write, based on the warp ID and the thread mask.
+When some threads run $s_1$ and others run $s_2$, the core will sequentialize them, meaning that we need to use the post-context for $s_1$ to serve as the pre-context for $s_2$, and the post-context for $s_2$ will be the final post-context of the entire if-clause.
 %
-It then updates the security level of $S[i]$ for any index $i$ in the set $\mathsf{set}(e', \mathsf{wID}, \mathsf{mask})$ to $(\mathsf{pc} \sqcup \iota) \sqcup \tau_i$, where $\tau_i$ is the security level of $S[i]$ before running the statement.
-%
-Note that here we cannot disregard $\tau_i$ and write $\mathsf{pc} \sqcup \iota$ because the index is only an overapproximation, i.e., we must avoid the risk of lowering the sercutiy level, as in runtime,  the contents of $S[i]$ may not be updated.
-%
-
-\farzaneh{TODO: add the if clause rule which updates the mask.}
-
-
-
-% where $\mathsf{set}(e')$ is a set consisting of all threads that can be identified by the expression $e'$. For example, $\mathsf{set}(\mathsf{tid})$ refers to the set consisting of all threads, and $\mathsf{set}(c')$ is a singleton set consisting of thread with identifier $c'$.
+The calculation of footprints for the if-clause is straightforward: it is a union of the footprints from both branches and the condition.
+  
+%   If one of the masks is false, its footprints will be empty and the postcontext will be equivelent to pre-context.
+% where $\mathsf{set}(o)$ is a set consisting of all threads that can be identified by the expression $o$. For example, $\mathsf{set}(\mathsf{tid})$ refers to the set consisting of all threads, and $\mathsf{set}(c')$ is a singleton set consisting of thread with identifier $c'$.
 
 % \begin{mathpar}
 %     \infer*[Right=]{ \Sigma \vdash e: \iota\\
@@ -108,11 +189,11 @@ Note that here we cannot disregard $\tau_i$ and write $\mathsf{pc} \sqcup \iota$
 % \begin{mathpar}
 %     \infer*[Right=]{ \Sigma \vdash e: \iota\\
 %     % x= \bigsqcup_{i \in \mathsf{wID}\cup \mathsf{mask}}x_i
-%      }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash S[e']\leftarrow e \dashv \Sigma[S[i]\mapsto \pc \sqcup \iota]_{i \in \mathsf{wID} \cup \mathsf{mask} \cup \mathsf{set}(e')}}
+%      }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash S[o]\leftarrow e \dashv \Sigma[S[i]\mapsto \pc \sqcup \iota]_{i \in \mathsf{wID} \cup \mathsf{mask} \cup \mathsf{set}(o)}}
 %     \end{mathpar}
 
 
-% \farzaneh{the above rule is not quite true, there should be an intersection involved. or define it as $\mathsf{set}(e',\mathsf{mask}, \mathsf{wID})$}
+% \farzaneh{the above rule is not quite true, there should be an intersection involved. or define it as $\mathsf{set}(o,\mathsf{mask}, \mathsf{wID})$}
 
 
 % For the reads from shared memory, we have:
@@ -131,63 +212,113 @@ Note that here we cannot disregard $\tau_i$ and write $\mathsf{pc} \sqcup \iota$
 %      }{\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash S[\mathsf{tid}]\leftarrow e \dashv \Sigma, S[1]:x \vee \pc, \cdots, S[n]:x \vee \pc}
 %     \end{mathpar}
 
-To address the second challenge, regarding interleaving of warps, we need to combine the static typing judgments  for each individual warp into an analysis that accounts for how warps interact during execution.
-%
-To do this, we first break the code into several segments,  separated by synchronization points $\mathit{sync-threads}$.
-%
-Each segment represents a portion of code where threads within different warps can be run in any order of interleaving.
-%
-No warp can proceed further until all warps have completed their execution of the current segment. 
-%
-We then establish taint tracking for each individual warp $\mathsf{wID}$ and each segment of the code $s_j$, by building the derivation for the judgment
-$\mathsf{wID};\mathsf{true};  \Sigma; \mathsf{Low}\vdash s_j \dashv \Sigma'$, starting from the mask $\mathsf{true}$ (indicating that all threads in the warp are active) and an initial program counter $\mathsf{Low}$. 
-%
-The goal is to combine these derivations to calculate a final context for the entire program, which reflects an overapproximation of the security state when the kernel execution terminates.
-%
-If the final context has low-security levels across all shared memory locations, we can prove that the EoK attack cannot happen. 
+% To address the second challenge, regarding interleaving of warps, we need to combine the static typing judgments  for each individual warp into an analysis that accounts for how warps interact during execution.
+% %
+% To do this, we first break the code into several segments,  separated by synchronization points $\mathit{sync-threads}$.
+% %
+% Each segment represents a portion of code where threads within different warps can be run in any order of interleaving.
+% %
+% No warp can proceed further until all warps have completed their execution of the current segment. 
+% %
+% The core does fast switching between warps when warp has to wait for data for example.
+% %
+% This can be a source for data race, which results in an undefined behavior.
+% %
+% This can comlicate the dynamic taint tracking analysis when there are two accesses to a single location and at least one of them is a write.
+% %
+% One reason is for the simple fact that in the presence of data race all possible cimbinations are available.
+% %
+% The other reason which complicates it even further is that CUDA has weak memory model, meaning that we cannot rely on the sequential consistency in these cases either.
+% %
+% As such, in this task, we propose collecting an over-approximation of footprints for each warp and ensuring that they do not result in an underfined behavior.
+% %
+% We generalize the judgment as 
+% $\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash S  \dashv \Sigma; \delta_\mathsf{write}; \delta_\mathsf{read}$.
+% For each segment, we make sure that the write footprints of each warp does not overlap with the read and write footprint of the others; two read footprints can overlap.
+% %
+% The red annotations in the above rules show show we collect such footprints.
 
-To combine the derivations, we model the typing judgment $\mathsf{wID};\mathsf{true};  \Sigma; \mathsf{Low}\vdash s_j \dashv \Sigma'$ as a function $\mathsf{static-type} (\mathsf{wID}, \Sigma, s)$ from the pre-context $\Sigma$, the warp id $\mathsf{wID}$, and the $j$-th segment of the code to the post context $\Sigma'$.
-    %
-We build the pre-context $\Sigma$ by attaching a security type variable to all memory locations, making the derivations polymorphic in the security level of their pre-context.
+To integrate taint tracking across all warps, we introduce the following rule that builds upon the judgment for each individual warp $\mathsf{wID}_k$ and each code segment $s_j$.
+
+{\small
+\begin{mathpar}
+    \infer*[Right=]{
+        \forall  \mathsf{wID}_k\in  \mathsf{warps}.\,\,
+    \mathsf{wID}_k; \mathsf{true};\Sigma, \mathsf{Low}\vdash s_j \dashv \Sigma_{k};\delta_{\mathsf{write}_k}  ;\delta_{\mathsf{read}_k}\\
+    \forall k,k'. \delta_{\mathsf{write}_k} \cap (\delta_{\mathsf{write}_{k'}} \cup \delta_{\mathsf{read}_{k'}})= \emptyset\\
+    \Sigma'=\bigsqcup _{\mathsf{wID}_k\in  \mathsf{warps}}\Sigma_k
+    }
+     {\Sigma \vdash s_j \dashv \Sigma'}
+    \end{mathpar}
+}
+
+Since segment separations via $\mathit{synch-threads}$ occur outside of if-clauses, we know that the program counter ($\mathsf{pc}$) is initially low for all warps, and all threads are active at the start.
+%
+The first premise of the rule constructs a typing derivation for every warp, calculating their memory footprint and post-context; in the premise $\mathsf{warps}$ refers to the set of all warps, which we assume is predetermined and static (or at least that we have an upper bound on the number of warps that will be allocated).
+% 
+The rule builds a typing derivation for all warps in the set of all warps, calculating their footprint and also their post-context. We assume that the set of all warps is preset statically.
+%
+To ensure there are no data races, the second premise checks that the footprints of different warps do not overlap in a way that could result in undefined behavior, particularly when at least one warp performs a write operation on a particular location.
+%
+ The post-context for all warps is then computed in the third premise as the lattice join of the post-contexts for each individual warp.
+\farzaneh{are warps known statically?}
+
+
+% We then establish taint tracking for each individual warp $\mathsf{wID}$ and each segment of the code $s_j$, by building the derivation for the judgment
+% $\mathsf{wID};\mathsf{true};  \Sigma; \mathsf{Low}\vdash s_j \dashv \Sigma'$, starting from the mask $\mathsf{true}$ (indicating that all threads in the warp are active) and an initial program counter $\mathsf{Low}$. 
+%
+
+% To combine the derivations, we model the typing judgment $\mathsf{wID};\mathsf{true};  \Sigma; \mathsf{Low}\vdash s_j \dashv \Sigma'$ as a function $\mathsf{static-type} (\mathsf{wID}, \Sigma, s)$ from the pre-context $\Sigma$, the warp id $\mathsf{wID}$, and the $j$-th segment of the code to the post context $\Sigma'$.
+%     %
+% We build the pre-context $\Sigma$ by attaching a security type variable to all memory locations, making the derivations polymorphic in the security level of their pre-context.
     % %
     % $\Psi; \mathsf{wID}; \mathsf{true};  \Sigma; \mathsf{Low}\vdash s_i \dashv \Sigma'$.
     % %
     % The function $\mathsf{static-type} (\mathsf{wID}, \Sigma, s_i)$ returns the context $\Sigma'$.
     % %
-    For each segment $s_j$, we consider all possible permutations of warps, and calculate the result of an iterative application of function $\mathsf{static-type}$ based on each permutation. 
-    %
-    The first input ($\mathsf{wID}$) for the $k$-th iteration of the function is the warp id of the $k$-th warp in the permutation.
-    %
-    Moreover, the post-context of the $k$-th iteration (for the $k$-th warp in the permutation) serves as the pre-context of the $k+1$-th iteration.
-    %
-    This chaining ensures that the taint propagation correctly reflects the order of execution of the warps, as each warp's execution can potentially affect the subsequent warp's execution in a way that modifies the shared memory's security levels.
-    % 
+    % For each segment $s_j$, we consider all possible permutations of warps, and calculate the result of an iterative application of function $\mathsf{static-type}$ based on each permutation. 
+    % %
+    % The first input ($\mathsf{wID}$) for the $k$-th iteration of the function is the warp id of the $k$-th warp in the permutation.
+    % %
+    % Moreover, the post-context of the $k$-th iteration (for the $k$-th warp in the permutation) serves as the pre-context of the $k+1$-th iteration.
+    % %
+    % This chaining ensures that the taint propagation correctly reflects the order of execution of the warps, as each warp's execution can potentially affect the subsequent warp's execution in a way that modifies the shared memory's security levels.
+    % % 
     % By applying $\mathsf{static-type}$ iteratively across each permutation of warps, we track the effect of all possible interleavings.
 
-    We calculate the post-context of each permutation and each segment using a dynamic algorithm implementation.
-    %
-    The final post-context for each segment will be the join of the post-context of all permutations (the worst case scenario).
-    %
-    Once the post-contexts for all segments have been computed, we combine the results of each segment to determine the overall final context for the entire program. 
-    % The input of the first warp of the first segment has to be assumed to be all low security.
+    % We calculate the post-context of each permutation and each segment using a dynamic algorithm implementation.
     % %
-    % This means that if the victim reads from a key left over by the attacker, then the ciphertext is also of a low security.
-    % \farzaneh{I have to think about this more. I feel like we do need some integrity level.} 
-    
-\farzaneh{is it ok?}We assume that the code cannot synchronize inside an if clause. The code can be separated into several segments between which there is a thread synchronize.
+    % The final post-context for each segment will be the join of the post-context of all permutations (the worst case scenario).
+    %
+    % The final post-context for each segment will be the join of the post-context of all warps.
+    % %
+    Once the post-contexts for all segments have been computed, we combine them to determine the overall final context for the entire program. 
+    %
+   The rule below illustrates how the post-context of the previous segment is used as the starting post-context for the next segment.
+    {\small
+    \begin{mathpar}
+        \infer*[Right=]{
+          \Sigma_0 \vdash s_1 \dashv \Sigma_1\\
+          \Sigma_1 \vdash s_2 \dashv \Sigma_2\\
+          \cdots\\
+          \Sigma_{n-1} \vdash s_n \dashv \Sigma_n\\
+        }
+         {\Sigma_0 \vdash s_1; \mathit{sync-threads}; s_2; \cdots; \mathit{sync-threads}; s_n \dashv \Sigma_n}
+        \end{mathpar}
+    }
+    %
+    The goal of this rule is to calculate a final context that overapproximates the security state of the program when kernel execution terminates. 
+    %
+    If the final context $\Sigma_n$ has low-security levels across all shared memory locations, we can conclude that the EoK attack is not possible.
+%
+Similarly, we can establish results for EoC attacks by combining different code blocks.
+%
+% Similarly, we build the system for global memory at the end of the context.
 
-\farzaneh{is it ok?}
-For this approach we need to know how many warps will be allocated.
-(Or have an upper bound on it.)
+To prove the soundness of our type system, we aim to demonstrate a noninterference property. This would show that running the program with different secrets, but the same public information, results in the same final state in shared memory. 
+Formally, we want to prove that, given two low-equivalent initial memory states (where the public information is identical and the secrets differ), if the first run of the program generates a final state, then any possible execution of the second run will produce an identical final state.
 
 
 
-% $\Sigma =H, \pc \vdash s \dashv \Sigma'$
-
-% $\Sigma', \pc \vdash s \dashv \Sigma''$
-
-
-
-% $f^n(\Sigma[H])$ -> first part
 
 

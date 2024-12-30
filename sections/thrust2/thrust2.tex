@@ -1,5 +1,5 @@
-\subsection{Motivating Example}
-\farzaneh{merge with Section 3.}
+% \subsection{Motivating Example}
+% \farzaneh{merge with Section 3.}
 % \farzaneh{move to the intro if needed: GPU memory is split into several regions, onchip and off-chip. On-chip memory consists of registers,
 % caches, and shared memory.
 % Off-chip memory
@@ -19,67 +19,67 @@
 % }
 % \farzaneh{Amdahl's law + GPUs are expensive -> one way is to share, e.g., MPS}
 
-In this thrust, we consider the scenario in which both the victim and attacker are clients of a shared GPU (see Figure~\ref{fig:th2-attack}). 
-%
-Several prior sudies~\cite{lee} showed that if the attacker's application runs on the same GPU as the victim's, it can potentially access private information left on the GPU memory by the victim's application.
-%
-This potential leak occurs both in a sequential time-sharing setting and in a concurrent setting, e.g., enabled by NVIDIA Multi-Process Service (MPS).
-%
-In a sequential setting, multiple GPU processes are executed in an interleaved fashion, with each process having exclusive access to GPU resources for a defined duration. The kernels of these processes are scheduled to run one after the other.
-%
-In the concurrent setting, multiple GPU processes can share GPU resources simultaneously, enabling multiple kernels to run at the same time.
-%
-In both cases, a lack of proper memory isolation may lead to an overlap between the memory locations that the attacker can access through normal operations—without any special privileges—and those used by the victim.
-%
-%
-% If the attacker's application runs concurrently with the victim's, it can potentially access private information that is left on the GPU memory by the victim's application.
-%
-% if the memory locations allocated to the attacker overlap with those used by the victim.
-%
-% To achieve this, the attacker only needs to access the GPU memory through regular allocation, deallocation, and read/write operations without requiring any special privileges.
-%
-The details of the attack vary depending on where in the memory the victim's information is located, e.g., in the shared or global memory, and whether the GPU server is concurrent or sequential.
-%
+% In this thrust, we consider the scenario in which both the victim and attacker are clients of a shared GPU (see Figure~\ref{fig:th2-attack}). 
+% %
+% Several prior sudies~\cite{lee} showed that if the attacker's application runs on the same GPU as the victim's, it can potentially access private information left on the GPU memory by the victim's application.
+% %
+% This potential leak occurs both in a sequential time-sharing setting and in a concurrent setting, e.g., enabled by NVIDIA Multi-Process Service (MPS).
+% %
+% In a sequential setting, multiple GPU processes are executed in an interleaved fashion, with each process having exclusive access to GPU resources for a defined duration. The kernels of these processes are scheduled to run one after the other.
+% %
+% In the concurrent setting, multiple GPU processes can share GPU resources simultaneously, enabling multiple kernels to run at the same time.
+% %
+% In both cases, a lack of proper memory isolation may lead to an overlap between the memory locations that the attacker can access through normal operations—without any special privileges—and those used by the victim.
+% %
+% %
+% % If the attacker's application runs concurrently with the victim's, it can potentially access private information that is left on the GPU memory by the victim's application.
+% %
+% % if the memory locations allocated to the attacker overlap with those used by the victim.
+% %
+% % To achieve this, the attacker only needs to access the GPU memory through regular allocation, deallocation, and read/write operations without requiring any special privileges.
+% %
+% The details of the attack vary depending on where in the memory the victim's information is located, e.g., in the shared or global memory, and whether the GPU server is concurrent or sequential.
+% %
 
-\paragraph{Time-sharing setting.}
+% \paragraph{Time-sharing setting.}
 
-Figure~\ref{fig:th2-mot}(a), for example, demonstrates an attack on a sequential server with private information stored in shared memory.
-%
-Similar to Thrust 1, the victim in this scenario is an AES application.
-% 
-GPU computing models discourage long-running GPU kernels. 
-%
-Thereby, the AES application uses several kernels, instead of a long-running one, repeatedly and processes the intermediate results. 
-%
-To increase efficieny, the application keeps its frequently accessed data, e.g., the encryption key, in shared memory, even after a single kernel terminates.
-%
-This means that if an attacker's kernel is scheduled to run between two kernels of the victim, it can compromise the security of the plaintext. 
-%
-The attacker can compromise the security by either reading the data left in shared memory, eventually relaying it back to the attacker's CPU (through either a direct or indirect leak), or by overwriting the data, altering the key.
-%
-In both cases, the attacker knows the key and can infer the plaintext by observing the public cyphertext. 
-%
-In the literature, this attack is often called the End of Kernel (EOK) attack.
+% Figure~\ref{fig:th2-mot}(a), for example, demonstrates an attack on a sequential server with private information stored in shared memory.
+% %
+% Similar to Thrust 1, the victim in this scenario is an AES application.
+% % 
+% GPU computing models discourage long-running GPU kernels. 
+% %
+% Thereby, the AES application uses several kernels, instead of a long-running one, repeatedly and processes the intermediate results. 
+% %
+% To increase efficieny, the application keeps its frequently accessed data, e.g., the encryption key, in shared memory, even after a single kernel terminates.
+% %
+% This means that if an attacker's kernel is scheduled to run between two kernels of the victim, it can compromise the security of the plaintext. 
+% %
+% The attacker can compromise the security by either reading the data left in shared memory, eventually relaying it back to the attacker's CPU (through either a direct or indirect leak), or by overwriting the data, altering the key.
+% %
+% In both cases, the attacker knows the key and can infer the plaintext by observing the public cyphertext. 
+% %
+% In the literature, this attack is often called the End of Kernel (EOK) attack.
 
 
-Figure~\ref{fig:th2-mot}(b) demonstrates a similar attack for a sequential server, but this time with the private information stored in global memory.
-%
-A segment of global memory is allocated to each CUDA context,  and an interleaved attacker kernel cannot access it until the application has terminated and the memory is deallocated.
-%
-After the application terminates, it deallocates the memory,  which then becomes available for future allocations.
-%
-However, prior work~\cite{pietro2016TECS} have demonstrated that data can persist even after deallocation, allowing an attacker kernel that runs immediately after the application to access the memory segment with its prior data. 
-%
-As such, even if the programmer attempts to clear the memory before exiting, this access can still result in information leakage. 
-%
-For example, in Figure~\ref{fig:th2-mot}(b), the attacker can access the plaintext stored in the global memory by the victim even after the deallocation of the global memory segment by the victim.
+% Figure~\ref{fig:th2-mot}(b) demonstrates a similar attack for a sequential server, but this time with the private information stored in global memory.
+% %
+% A segment of global memory is allocated to each CUDA context,  and an interleaved attacker kernel cannot access it until the application has terminated and the memory is deallocated.
+% %
+% After the application terminates, it deallocates the memory,  which then becomes available for future allocations.
+% %
+% However, prior work~\cite{pietro2016TECS} have demonstrated that data can persist even after deallocation, allowing an attacker kernel that runs immediately after the application to access the memory segment with its prior data. 
+% %
+% As such, even if the programmer attempts to clear the memory before exiting, this access can still result in information leakage. 
+% %
+% For example, in Figure~\ref{fig:th2-mot}(b), the attacker can access the plaintext stored in the global memory by the victim even after the deallocation of the global memory segment by the victim.
 
-\paragraph{Spatial-sharing setting.}
+% \paragraph{Spatial-sharing setting.}
 
-When it comes to concurrent access, the situation becomes more complex as resources are allocated dynamically, and two applications can, in practice, access one segment of the memory simultaneously (see Figure~\ref{fig:th2-mot}(c)).
-%
-As stated in NVIDIA's MPS manual (Section 2.3.3.1), ``An out-of-range read in a CUDA kernel can access CUDA-accessible memory modified by another process and will not trigger an error, leading to undefined behavior.'' \cite{hayes2017usenix}
-\farzaneh{I'm not aware of many prior work on such attacks in MPS}
+% When it comes to concurrent access, the situation becomes more complex as resources are allocated dynamically, and two applications can, in practice, access one segment of the memory simultaneously (see Figure~\ref{fig:th2-mot}(c)).
+% %
+% As stated in NVIDIA's MPS manual (Section 2.3.3.1), ``An out-of-range read in a CUDA kernel can access CUDA-accessible memory modified by another process and will not trigger an error, leading to undefined behavior.'' \cite{hayes2017usenix}
+% \farzaneh{I'm not aware of many prior work on such attacks in MPS}
 
 
 
@@ -93,115 +93,92 @@ As stated in NVIDIA's MPS manual (Section 2.3.3.1), ``An out-of-range read in a 
 % The memory allocated by any of the client processes is accessible to all other client processes, which compromises memory isolation between them.
 %
 
-\subsection{Prior work}
-\farzaneh{move to this to the separate section on prior work?}
-Prior work has explored various approaches to prevent these vulnerabilities, taking into account both the private information stored in shared memory and that in global memory.
-%
-Pietro et al.~\cite{pietro2016TECS} proposed to rewrite the code such that it zeroizes all leftover data in shared memory after kernel execution terminates.
-%
-They demonstrated this approach with a sample program that calculates the sum of two vectors.
-%
-Additionally, they implemented a zeroizing function within the CUDA runtime to clear all global memory after the context ends.
-%
-In their experiments, they found that the overhead of zeroizing shared memory was negligible for the sample program.
-%
-However, the overhead of zeroizing global memory through the CUDA runtime was not negligible.
-%
-Even if the overhead for zeroizing might be low, their approach prevents low-security data from remaining in shared memory when necessary; it forces the user to transfer the low-security data between CPU and GPU for each kernel execution, disrupting performance optimizations related to data locality and defeating the purpose of GPU programming.
-%
-
-%
-% Furthermore, their approach toward zeroizing shared memory is somewhat ad-hoc, relying completely on the programmer to rewrite the program to zeroize the shared memory location.
-% %
-
-% The overhead of zeroizing might be low (how much?) but still it doesn't allow low security ones to remain in the shared memory, when one needed.
-%
-Hayes et al.~\cite{hayes2017usenix}, introduced a dynamic taint tracking approach as a complementary measure to identify memory locations tainted with sensitive data.
-%
-They then use that taint information either to trigger an alarm whenever there is an aunauthorized access to such tainted memory or to zeroize the tainted locations in shared (resp. global) memory after the kernel (resp. context) terminates.
-%
-Dynamic taint tracking is known to be an expensive procedure. 
-%
-Hayes et al. optimized it by leveraging GPU-specific features, such as eliminating certain instructions working with runtime parameters and constants from taint tracking, as well as utilizing the large GPU register file.
-%
-These optimizations significantly reduced the overhead compared to CPU-based taint-tracking algorithms,  achieving a 5-20x speedup across a range of applications.
-%
-Despite these improvements, the approach still incurs a 5\%-13\% performance penalty, particularly when dealing with shared memory.
-
-% However, none of the prior work address the integrity aspect of the attack, where an attacker could leave malicious data behind in shared memory, potentially compromising the system’s security.
-
-None of the prior work considers that low-integrity writes can be as malicious to security as low-security reads.
-%
-This is especially concerning when dealing with an active attacker on the GPU, who can injects data into memory to force leaking sensitive information,  e.g., an attacker can rewrite the cipherkey behind in shared memory and observe the resulting ciphertext.
 
 
-\subsection{Proposed work}
+
+
 This thrust focuses on addressing EoK and EoC attacks as described in Section~\ref{sec:motivating}.
 %
-% We provide a brief overview of the main challenges in mitigating such attacks.
-%
-We propose designing a flow-sensitive information flow control system to capture the taint level propagation by running each warp.
+We propose designing flow-sensitive information flow control systems to capture the taint level propagation throughout the execution.
 %
 A flow-sensitive system allows the confidentiality level,
-i.e., security type, of variables and locations to change while running or typing the program. 
+i.e., security type, of locations to change while running or typing the program. 
 %
-For example, after each high-security write on a particular location, the security level associated to the location increases to at least the security level of the secret.
+For example, after each high-security write on a particular index of the shared memory, the security level associated with the location increases to at least the security level of the secret.
 %
-There are two main challenges in addressing such attacks.
-
+To prevent the EoK attack (resp. EoC attack), we then use the taint tracking results to make sure that no tainted location exists in shared memory (resp. global memory) at the end of each kernel (resp. context).
 
 \paragraph{Challenge 1: Fine-grained security annotations for indexed arrays.}
 %
-We are interested in a fine-grained security annotations to shared and global memory locations, which are usually modeled as arrays or matrices.
+In many GPU-accelerated applications, minimizing data transfers between the CPU and GPU is important, as repeated transfers can significantly degrade performance. As such, kernels should be able to leave behind non-confidential information in shared memory for later use by subsequent kernels of the same application. Additionally, zeroization itself can introduce substantial overhead, particularly for large arrays or matrices in global memory, and must be avoided unless the location stores confidential information.
 %
-Prior work~\cite{?} assign a single security level to the whole array, i.e., after a single high-security write on a single index of an array, they change the security type of the entire array to high.
+To address this, we need to assign fine-grained security annotations to shared and global memory locations, which are typically modeled as arrays or matrices.
 %
-While this results in a sound type system, it is too coarse-grained for our application, for which we are interested in identifying, as exact as possible, the locations of the array which may be influenced by a secret. 
+Prior work~\cite{?} assigns a single security level to the whole array, i.e., even after a single high-security write on a single index of an array, they change the security type of the entire array to high.
+%
+While this results in a sound type system, it is too coarse-grained for our application, for which we are interested in identifying, as exactly as possible, the locations of the array that a secret may influence. 
+%
+
 
 
 \paragraph{Challenge 2: Non-deterministic interleaving of warps and blocks.}
-To address the EoK and EoC attacks we need to consider the interleaving between multiple warps within a block (which share the shared memory) and multiple blocks within a kernel (which share global memory).
-% %
-% This imposes a challenge, as the warps withing a block and blocks within a kernel can be interleaved by a scheduler.
+To address the EoK and EoC attacks, we need to consider the interleaving between multiple warps within a block (which share the shared memory) and multiple blocks within a kernel (which share global memory).
 %
 The interleaving of warps and blocks is controlled by a scheduler, the exact details of which are not fully known due to the proprietary nature of NVIDIA's implementation and the dependence on runtime events.
+%
+As a result, we must assume that any interleaving of warps and blocks is valid. 
 % 
-As a result, we must assume that any interleaving of warps and blocks is valid.
+According to NVIDIA's documentation, each core frequently switches between warps, e.g., when one is waiting for data. 
+%
+This warp switching can lead to data races, i.e., when two warps access the same memory location, and at least one is a write operation, resulting in an undefined behavior.
+%
+Moreover, CUDA employs a weakly ordered memory model, adding another layer of complexity to memory access synchronization.
+
+%
+% As a result, we must assume that any interleaving of warps and blocks is valid. 
 % 
-We model the system with a non-deterministic scheduler and aim to prove that, for any possible interleaving of warps and blocks, the program is secure.
+% We model the system with a non-deterministic scheduler and aim to prove that, for any possible interleaving of warps and blocks, the program is secure.
+
 
 We propose two approaches to address the above challenges.
 %
-In Task 2.a, we propose an approach based on static information flow control analysis.
+In Task 2a, we propose an approach based on \emph{static information flow control analysis} that also prevents undefined behaviors.
 %
-We design a flow-sensitive taint tracking system that captures the flow of sensitive data throughout the program and memory locations statically via taint levels.
+We design a flow-sensitive taint tracking system that captures the flow of sensitive data throughout the program statically via taint levels. 
 %
-While this static approach is low-cost, it only provides an over-approximation of the security guarantees. 
+The static system also collects (an overapproximation of) the memory footprint of each warp to ensure that an undefined behavior does not occur.
+%
+While this static approach is low-cost, it inherently only provides an overapproximation of the security guarantees. 
 % 
-For example, when two warps both access the same shared memory location—one for reading and the other for writing—the static analysis must assume that if the write is high-security, the read is considered tainted. 
-% 
-However, in practice, if the read always happens before the write, there may be no need to taint the data, as no leak would occur in such a case.
+For example, when an index used to access a shared memory location depends on a runtime value, the static analysis must consider all possible runtime values, resulting in an overapproximation of the memory locations accessed.
+%
+Moreover, the static analysis does not support scenarios where two warps might theoretically induce undefined behavior, but do not actually do so in practice due to specific runtime conditions.
 
-In Task 2.b, we address the limitations of the static analysis approach by incorporating a hybrid method that combines both static and dynamic taint tracking.
+In Task 2b, we propose addressing the limitations of the static analysis approach by designing a dynamic taint tracking monitor.
 % 
-% Dynamic taint tracking is inherently expensive, especially if we track more than just a single bit for each memory location.
-% Rather than a binary secure/insecure flag, we aim to capture the full spectrum of information flow within the application.
+The dynamic monitor aims tracks the taint level of memory locations at runtime, ensuring that flows are accurately captured for the executed branch.
 %
-To achieve this, we propose using static analysis for each warp (with respect to shared memory) and each block (with respect to global memory) to establish the sensitive flow of information in these units.
-%
-Then we design a dynamic monitoring to track the actual interleaving of warps and blocks at runtime.
+To ensure the soundness of the dynamic monitor, we will add a static footprint analysis that checks for indirect leaks through non-executed branches for each thread. 
 % 
 The dynamic taint tracking hardware monitor should detect potential insecure memory accesses, either preventing them or raising an alarm.
 % 
-Additionally, this monitor can sanitize sensitive (tainted) data objects at the end of their lifecycle.
+Additionally, this monitor can sanitize tainted locations at the end of their lifecycle or restrict access to unsanitized locations outside of the application.
 
+% Dynamic taint tracking is inherently expensive, especially if we track more than just a single bit for each memory location.
+% Rather than a binary secure/insecure flag, we aim to capture the full spectrum of information flow within the application.
+%
 %
 % We plan to use static analysis for each warp and each block and then capture the interleaving using the dynamic monitor.
 
-In Task 2.c, we plan to implement a Taint Analysis Framework based on the ideas of Tasks 2.a and 2.b using OCAML.
-\farzaneh{I'm not sure about this.}
-\farzaneh{Should we only focus on the shared memory?}
-In the proposal we describe our ideas based on the EoK attacks in the time-sharing setting. 
+In Task 2c, we plan to implement a Taint Analysis Framework that integrates the ideas developed in Tasks 2a and 2b.
+%
+% This framework will be implemented using OCaml.
+% %
+% We will also evaluate the performance of our approach using the AES encryption algorithm, allowing us to assess the efficiency of the proposed system in a real-world scenario.
+%
+
+% \farzaneh{Should we only focus on the shared memory?}
+% In the proposal we describe our ideas based on the EoK attacks in the time-sharing setting. 
 % In thrust 1, we propose an approach based on a static information flow control analysis in which we control the flow.
 % %
 % It is similar to the previous task, except that we need to consider multiple warps in a block that share the shared memory and multiple blocks in the kernel that share the global memory. 

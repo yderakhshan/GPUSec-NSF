@@ -34,5 +34,59 @@ Jiang et al.~\cite{AESattack} present such an attack on a table-based
 implementation of AES, and show that they are able to reconstruct the
 last-round key solely by observing the encryption time.
 
+\subsection{merge}
+We also consider the scenario in which both the victim and attacker are clients of a shared GPU (see Figure~\ref{fig:th2-attack}). 
+%
+Several prior sudies~\cite{lee} showed that if the attacker's application runs on the same GPU as the victim's, it can potentially access private information left on the GPU memory by the victim's application.
+%
+% This potential leak occurs both in a sequential time-sharing setting and in a concurrent setting, e.g., enabled by NVIDIA Multi-Process Service (MPS).
+%
+Multiple GPU processes are executed in an interleaved fashion, with each process having exclusive access to GPU resources for a defined duration. The kernels of these processes are scheduled to run one after the other.
+%
+% In the concurrent setting, multiple GPU processes can share GPU resources simultaneously, enabling multiple kernels to run at the same time.
+%
+% In both cases, a 
+A lack of proper memory isolation may lead to an overlap between the memory locations that the attacker can access through normal operations—without any special privileges—and those used by the victim.
+%
+%
+% If the attacker's application runs concurrently with the victim's, it can potentially access private information that is left on the GPU memory by the victim's application.
+%
+% if the memory locations allocated to the attacker overlap with those used by the victim.
+%
+% To achieve this, the attacker only needs to access the GPU memory through regular allocation, deallocation, and read/write operations without requiring any special privileges.
+%
+The details of the attack vary depending on where in the memory the victim's information is located, e.g., in the shared or global memory, and whether the GPU server is concurrent or sequential.
+%
+
+Figure~\ref{fig:th2-mot}(a), for example, demonstrates an attack on a server with private information stored in shared memory.
+%
+The victim in this scenario is an AES application.
+% 
+GPU computing models discourage long-running GPU kernels. 
+%
+Thereby, the AES application uses several kernels, instead of a long-running one, repeatedly and processes the intermediate results. 
+%
+To increase efficieny, the application keeps its frequently accessed data, e.g., the encryption key, in shared memory, even after a single kernel terminates.
+%
+This means that if an attacker's kernel is scheduled to run between two kernels of the victim, it can compromise the security of the plaintext. 
+%
+The attacker can compromise the security by either reading the data left in shared memory, eventually relaying it back to the attacker's CPU (through either a direct or indirect leak), or by overwriting the data, altering the key.
+%
+In both cases, the attacker knows the key and can infer the plaintext by observing the public cyphertext. 
+%
+In the literature, this attack is often called the End of Kernel (EOK) attack.
+
+
+Figure~\ref{fig:th2-mot}(b) demonstrates a similar attack for a  server, but this time with the private information stored in global memory.
+%
+A segment of global memory is allocated to each CUDA context,  and an interleaved attacker kernel cannot access it until the application has terminated and the memory is deallocated.
+%
+After the application terminates, it deallocates the memory,  which then becomes available for future allocations.
+%
+However, prior work~\cite{pietro2016TECS} have demonstrated that data can persist even after deallocation, allowing an attacker kernel that runs immediately after the application to access the memory segment with its prior data. 
+%
+As such, even if the programmer attempts to clear the memory before exiting, this access can still result in information leakage. 
+%
+For example, in Figure~\ref{fig:th2-mot}(b), the attacker can access the plaintext stored in the global memory by the victim even after the deallocation of the global memory segment by the victim.
 \subsection{Large Language Models}
 \stefan{fill in}
