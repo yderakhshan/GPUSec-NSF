@@ -1,33 +1,23 @@
 \subsubsection{Task 1.b.}
-In Task 1.a. (\farzaneh{add the ref.}) we follow the classical approach of establishing noninterference to enforce security and ensure that no information is leaked to the attacker. This classical approach, however, is not always feasible or realistic. 
+In Task 1a we follow the classical approach of establishing noninterference to enforce security and ensure that no information is leaked to the attacker. This classical approach, however, is not always feasible or realistic. 
 %
 In a realistic setting, small leaks of information should be tolerated by the system as long as they are limited and do not significantly compromise the secrecy or identity of other parties.
 % 
-% Sometimes, certain information must be disclosed to a party with lower security clearance, but only in a way that does not significantly compromise the secrecy or identity of other parties. Sometimes, small leaks of information can be tolerated by the system as long as they are limited and do not increase the chance of guessing the secret by far. 
+Even if the attacker observes a different number of bank conflicts in two runs of the program, it may not be able to deduce ``too much'' information from it. 
 %
-% An unreliable environment might induce noise in the observations of the attacker making the attacker unable to distinguish the difference between certain results, as long as the difference is is not ``too much''. 
-% %
-Even if the attacker observe different number of bank conflicts in two runs of the program, it may not be able to deduce ``too much'' information from it. 
-%
-% For example, the AES motivating example does not satisfy the noninterference property, since there is a flow of information from the high security information (plaintext) to low security information (cybertext).
-% %
-% However, this flow is designed in such a way that that 
-% For example, because of the noise in the observations of the attacker, it cannot tell the difference between two execution times as long as the difference is ``not too much''. 
-% %
-% Or even if the attacker can observe the difference, it cannot deduce ``too much information'' from it. 
-% %
 The precise threshold for “too much'' varies depending on the specifics of the system. 
 %
-For example, in the motivating AES example, if the encryption key rotatation is set such that after every ten runs a new random key is generated, then leaking one bit of information in every run, cannot leak more than 10 bits of the ciphertext.
+For example, in the motivating AES example, if the encryption key rotation is set such that after every ten runs, a new random key is generated, then leaking one bit of information in every run cannot leak more than 10 bits of the ciphertext.
 %
 If we can quantify information leakage, we can compare it with the established threshold to ensure the system does not significantly compromise security.
 %
 In this task, we plan to maintain a realistic perspective on security by quantifying leaks via the timing side-channel.
-\farzaneh{check the example above.}
-
-We illustrate our approach using the example below.
 %
-The sample code works on a secret $h$ which stores a two bit value.
+We propose using the resource-aware Relational Hoare logic, along with its possible extensions, to manage quantitative information flow control based min-entropy and min-capacity, as introduced by Smith~\cite{smith2011ICQE}.
+%
+The primary challenge for calculating the min-entropy is determining the cardinality of possible bank conflicts between two program executions that agree on low inputs.
+%
+To illustrate this approach, consider the following example: working on a secret $h$ which stores a two-bit value.
 \begin{lstlisting}
     if (h=00) {
       S[2 * threadIdx] = 0;} 
@@ -41,107 +31,149 @@ The sample code works on a secret $h$ which stores a two bit value.
          S[threadIdx] = 0;}}}
 \end{lstlisting}
 % in Figure~\ref{fig:qtable}.
-Based on the secret $h$, the program sends threads into four branches, in the first and third branches there are no bank conflicts, in the second and fourth branches there will be 16 bank conflicts.
+Based on the secret $h$, the program sends threads into four branches; in the first and third branches, there are no bank conflicts; in the second and fourth branches, there will be 16 bank conflicts.
 %
-The condition of the branch is not divergent, meaning that all threads will execute the same branch, but depending on the value of the secret the branch can be different.
-%
+% The condition of the branch is not divergent, meaning that all threads will execute the same branch, but depending on the value of the secret the branch can be different.
+% %
 We model the value of the secret $h$ as a random variable.
 %
-For now, let us assume that the probability distribution of the secret is uniform.
+The attacker knows this a priori probability but cannot 
+observe the exact secret stored in $h$.
+%
+For simplicity, let us assume that the probability distribution of the secret is uniform.
 %
 Meaning that each possible 2-bit secret value $s$ for $h$ has the same probability of $1/4$, i.e., $P(h=s)= 1/4$ for any $s\in S=\{00,01,10,11\}$.
 %
-The attacker knows this a priori probability, but cannot 
-observe the exact secret stored in $h$; it is uncertain about the value of $h$.
 %
+Min-entropy provides the probability of the attacker guessing the correct secret in one try.
+%
+In this case, the probability is $1/2$ since there are only two possible outcomes for the number of bank conflicts, i.e., the cardinality of the possible outcomes for a number of bank conflicts is $2$.
+%
+This shows that the number of observations is key in calculating the min-entropy.
+% Min-entropy provides a measure to quantify the amount of  uncertainty of the attacker (\cite{min-entropy}).
+% %
+% It is defined as 
+% $H_\infty(h)=-\log_2\max_s P(h=s)$,
+% and captures the probability that the attacker correctly guesses the secret in one try.
+% %
+% For example, before executing the program, the min-entropy is $H_\infty(h)=-\log_2\max_s P(h=s)= - \log_2 \max_s \{1/4,1/4,1/4,1/4\}= 2$.
+% %
+% We can interpret the min-entropy as the probability of the attacker guessing the correct secret is $1/2^{H_\infty(h)}$.
+% %
+% When the random variable has the uniform probability, one can rewrite a priori min-entropy as $H_\infty(h)=-\log_2\max_s P(h=s)=-\log_2 |S|$.
+% %
+% In this case, we can also interpret it as there are two bits that the attacker needs to know to fully guess the secret.
+% %
 
-Min-entropy provides a measure to quantify the amount of  uncertainty of the attacker (\cite{min-entropy}).
-%
-It is defined as 
-$H_\infty(h)=-\log_2\max_s P(h=s)$,
-and captures the probability that the attacker correctly guesses the secret in one try.
-%
-For example, before executing the program, the min-entropy is $H_\infty(h)=-\log_2\max_s P(h=s)= - \log_2 \max_s \{1/4,1/4,1/4,1/4\}= 2$.
-%
-We can interpret the min-entropy as the probability of the attacker guessing the correct secret is $1/2^{H_\infty(h)}$.
-%
-When the random variable has the uniform probability, one can rewrite a priori min-entropy as $H_\infty(h)=-\log_2\max_s P(h=s)=-\log_2 |S|$.
-%
-In this case, we can also interpret it as there are two bits that the attacker needs to know to fully guess the secret.
-%
+% After executing the program, however, the attacker can observe the number of bank conflicts and learn information about the secret based on the number of observed bank conflicts.
+% %
+% If the attacker observes zero bank conflicts, then it can immediately rule out the secret having values $01$ and $11$.
+% %
+% While, if the attacker observes $16$ bank conflicts, then it can rule out the secret having values $00$ and $11$.
+% %
+% In both cases, the attacker can guess the correct secret in one try with $1/2$ chance.
+% %
 
-After executing the program, however, the attacker can observe the number of bank conflicts and learn information about the secret based on the number of observed bank conflicts.
-%
-If the attacker observes zero bank conflicts, then it can immediately rule out the secret having values $01$ and $11$.
-%
-While, if the attacker observes $16$ bank conflicts, then it can rule out the secret having values $00$ and $11$.
-%
-In both cases, the attacker can guess the correct secret in one try with $1/2$ chance.
-%
+% Min-entropy can also be used to calculate a posteriori uncertainty of the attacker  (after the observation) using a conditional probability:
+% $H_\infty(h\mid b)=-\log_2\Sigma_{o\in O} P(b=o) \max_s P(h=s|b=o)$,
+% where $b$ is a random variable referring to the number of bank conflicts, $o$ is the number of bank conflict observed, and $O$ is the set of possible observations.
+% %
+% In our example, we know that the possible set of observations are $O=\{0,16\}$, the probabilities are $P(h=00,o=0)=P(h=01,o=16)=P(h=10,o=0)=P(h=11,o=16)=1$ with the rest of combinations having value $0$.
+% %
+% We can calculate the a posteriori entropy as 
+% \[\begin{array}{ll}
+%     H_\infty(h\mid b)=&-\log_2\Sigma_{o\in O} P(b=o) \max_s P(h=s|b=o)=\\ &-\log_2 (P(b=0)\max_s P(h=s|b=0) + P(b=16)\max_s P(h=s|b=16))=\\
+%     &
+%     -\log_2 (\max_s P(h=s,b=0) + \max_s P(h=s,b=16))=\\
+%     & 
+%     -\log_2 (1+1)= 1
+% \end{array}\]
+% We can interpret the a posteriori min-entropy as the probability of the attacker guessing the secret correctly after observing the number of bank conflicts is $1/2^{ H_\infty(h\mid b)}= 1/2$
 
-Min-entropy can also be used to calculate a posteriori uncertainty of the attacker  (after the observation) using a conditional probability:
-$H_\infty(h\mid b)=-\log_2\Sigma_{o\in O} P(b=o) \max_s P(h=s|b=o)$,
-where $b$ is a random variable referring to the number of bank conflicts, $o$ is the number of bank conflict observed, and $O$ is the set of possible observations.
-%
-In our example, we know that the possible set of observations are $O=\{0,16\}$, the probabilities are $P(h=00,o=0)=P(h=01,o=16)=P(h=10,o=0)=P(h=11,o=16)=1$ with the rest of combinations having value $0$.
-%
-We can calculate the a posteriori entropy as 
-\[\begin{array}{ll}
-    H_\infty(h\mid b)=&-\log_2\Sigma_{o\in O} P(b=o) \max_s P(h=s|b=o)=\\ &-\log_2 (P(b=0)\max_s P(h=s|b=0) + P(b=16)\max_s P(h=s|b=16))=\\
-    &
-    -\log_2 (\max_s P(h=s,b=0) + \max_s P(h=s,b=16))=\\
-    & 
-    -\log_2 (1+1)= 1
-\end{array}\]
-We can interpret the a posteriori min-entropy as the probability of the attacker guessing the secret correctly after observing the number of bank conflicts is $1/2^{ H_\infty(h\mid b)}= 1/2$
-
-The amount of information leak can be quantified as $\mathsf{leak}= H_\infty(h) - H_\infty(h\mid b)$, which is equal to $2-1=1$ in our example.
-%
-This means that in the worst case scenario, the run will leak 2 bits of information.
+% The amount of information leak can be quantified as $\mathsf{leak}= H_\infty(h) - H_\infty(h\mid b)$, which is equal to $2-1=1$ in our example.
+% %
+% This means that in the worst case scenario, the run will leak 2 bits of information.
 
 
-Smith~\cite{smith} showed that in the case where the program is deterministic and the probability of the secret is uniform, the min-entropy can be reduced to $\mathsf{leak}=\log_2 |O|,$ where $O$ is the set of all feasible obsevations. 
-%
-(for other probability distributions it is $\le \log_2 |O|.$)
-%
-This shows that the number of observations is key in calculating the min-entropy. 
-%
-$\{0,3\}$ will leak the same as $\{0,16\}$.
+% Smith~\cite{smith} showed that in the case where the program is deterministic and the probability of the secret is uniform, the min-entropy can be reduced to $\mathsf{leak}=\log_2 |O|,$ where $O$ is the set of all feasible obsevations. 
+% %
+% (for other probability distributions it is $\le \log_2 |O|.$)
+% %
+% This shows that the number of observations is key in calculating the min-entropy. 
+% %
+% $\{0,3\}$ will leak the same as $\{0,16\}$.
 
-Our proposed noninterference theorem in \ref{task:1a} ensures that no information will be leaked.
-%
-In other words, if we can prove the noninterference theorem for $s$, aka $\{\Phi;0; \{\}\}s \sim s\{\Phi;0;\{\}\}$, we know that all threads will have the same number of bank conflicts.
-%
-There is only one feasible observation and thus $\mathsf{leak}\le \log_2 |1|=0.$
-
+% Our proposed noninterference theorem in \ref{task:1a} ensures that no information will be leaked.
+% %
+% In other words, if we can prove the noninterference theorem for $s$, aka $\{\Phi;0; \{\}\}s \sim s\{\Phi;0;\{\}\}$, we know that all threads will have the same number of bank conflicts.
+% %
+% There is only one feasible observation and thus $\mathsf{leak}\le \log_2 |1|=0.$
 % one of the columns is all $1$ and every other column has value $0$.
 %
-Now let us see what it means if we have $\{\Phi;0; \{\}\}s \sim s\{\Phi;n;\{\}\}$.
-%
-It states that the differences between the number of bank conflicts in any two runs of the program is capped by $n$.
-%
-% All columns are the same except $n$ consecuritve columns that can be different.
-%
-This automatically provides an upper bound $n$ on the number of feasible observations, given that the number of bank conflicts is always a positive natural number. 
-%
-However, this upper bound in many cases is too generous.
-%
-For example, for program $s_0$ given above, we have $\{\Phi;0; \{\}\}s_0 \sim s_0\{\Phi;16;\{\}\}$, while we with 0 and 16.
-%
-We plan to investigate this further by adopting our logic to not only provide an upper-bound but also a set of possible outcomes.
-%
-The set can (and should for decidability reasons) still be an over-approximation but it can reduce the space further.
-%
-This will be captured with the diffconflicts premise, instead of measuring the upper bound, it will provide a list of possible differences.
-%
+% Now let us see what it means if we have $\{\Phi;0; \{\}\}s \sim s\{\Phi;n;\{\}\}$.
+% %
+% It states that the differences between the number of bank conflicts in any two runs of the program is capped by $n$.
+% %
+% % All columns are the same except $n$ consecuritve columns that can be different.
+% %
+% This automatically provides an upper bound $n$ on the number of feasible observations, given that the number of bank conflicts is always a positive natural number. 
+% %
+% However, this upper bound in many cases is too generous.
+% %
+% For example, for program $s_0$ given above, we have $\{\Phi;0; \{\}\}s_0 \sim s_0\{\Phi;16;\{\}\}$, while we with 0 and 16.
+% %
 
-After that, we plan to also consider arbitrary distributions other that uniform. 
+If we can prove the noninterference theorem discussed in Task 1a  for $p$, aka $\{\Phi;0; \{\}\}p \sim p\{\Phi;0;\{\}\}$, there is only one possible outcome for the number of bank conflicts across different executions, i.e., the cardinality of the set of bank conflicts is $1$.
 %
-We have to work with the original formula.
+Now consider the case where we have $\{\Phi;0; \{\}\}p \sim p\{\Phi;n;\{\}\}$ for $n > 0$.
 %
-(no nondeterministic for now).
+It indicates that the differences between the number of bank conflicts in any two runs of the program is capped by $n$.
 %
-An unreliable environment might induce noise in the observations of the attacker making the attacker unable to distinguish the difference between certain results, as long as the difference is is not ``too much''. 
+This automatically provides an upper bound $n$ on the number of possible observations, given that the number of bank conflicts is always a positive natural number. 
+%
+We plan to use this upper bound to calculate the min-entropy of a program.
+%
+However, this upper bound, in many cases, is too generous.
+%
+For example, for sample program $p_0$ given above, we have $\{\Phi;0; \{\}\}p_0 \sim p_0\{\Phi;16;\{\}\}$, giving us an upper bound of $16$ on the cardinality of possible outcomes, while the actual cardinality is only $2$.
+%
+We will investigate different interpretations of the potential function and design of a resource-aware Relational Hoare Logic that can provide a more accurate estimate of the cardinality of possible outcomes.
+%
+Furthermore, we will explore more general approaches to quantitative information flow control based on g-vulnerability rather than min-entropy~\cite{alvim2020springer}.
+%
+The g-vulnerability is defined using a function that quantifies the gain an attacker experiences by choosing from a set of its actions. 
+%
+% We propose the following adapted rule for the resource aware hoare logic to provide an upper-bound on the cardinality of the possible number of bank conflicts rather than the maximum number of bank conflicts.
+%
+% The set can (and should for decidability reasons) still be an over-approximation but it can reduce the space further.
+%
+% Here $\mathtt{card\_conflicts}(o)$ calculates an upper-bound on the cardinality of the set of all possible bank conflicts  for index $o$ while $m$ represents the cardinality of possible bank conflicts when executing the expression $e$.
+% %
+% Since we are dealing with cardinalities, the proper operation for composing the cardinalities is multiplication, rather than addition.
+% \[
+% \infer[]{\Phi[e/S[o]] \Rightarrow \mathtt{conflicts}(o_1) \le n\\  \Phi \vdash e : m}{\{\Phi; Q\times n \times m; X\} S[o] \leftarrow e  \{\Phi; Q; X\}  }
+% \]
+
+% The {\em potential function} $Q$ maps program states to rational numbers.
+% %
+
+% The standard way to quantify security is by considering the prior knowledge of the attacker about the secret as  a random variable of which the attacker only knows the distribution of, and then we model the program as a channel that maps each input state to an observable output by the attacker $\mathsf{C}: \mathcal{X} \rightarrow \mathcal{T}$. Here the observable output is the number of outcomes, which we right it as a $\mathcal{T}$. Here, we deal with deterministic programs, meaning that for each input state there is exactly one observable output (number of bank conflicts.)
+
+
+
+% The g-vulnerability of the posterior and thus the overall leak depends on the characteristics of the program as a channel.
+% %
+% We propose  designing a new Hoare Logic by adapting the resource aware Hoare logic for CUDA to capture the characteristics of the program as a channel.
+
+
+
+% After that, we plan to also consider arbitrary distributions other that uniform. 
+% %
+% We have to work with the original formula.
+% %
+% (no nondeterministic for now).
+% %
+% An unreliable environment might induce noise in the observations of the attacker making the attacker unable to distinguish the difference between certain results, as long as the difference is is not ``too much''. 
 % Based on the noise of the environment and the abilities of the attacker, we can also say whether two possible observations are distinguishable to the attacker.
 % %
 % For example $1$ vs $2$ and $2$ vs $3$ is not observable to the attacker.
