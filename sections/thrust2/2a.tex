@@ -4,7 +4,7 @@
 % %
 % We will address the challenges with respect to global memory next.
 %
-We propose designing a flow-sensitive information flow control type system a la Hunt and Sands\cite{hunt2006popl}  to capture the taint level propagation by running each warp.
+We propose a flow-sensitive information flow control type system a la Hunt and Sands\cite{hunt2006popl}  to capture the taint level propagation through a program with multiple warps
 %
 A flow-sensitive type system allows adjusting the security levels of memory locations while typing the program.
 %
@@ -13,7 +13,7 @@ For example, after writing data on a particular location, the security level ass
 
 To address the first challenge, we associate a security level to each location in shared memory and global memory, and annotate the typing judgment with the warp id ($\mathsf{wID}$), that identifies a specific warp under consideration, and a predicate ($\mathsf{mask}$), that provides an overapproximation of which threads in the warp are executing within a particular branch. 
 % 
-With this information, our type system tracks changes in security levels as fine-grained  as possible.
+With this information, our type system tracks changes in security levels at as fine a granularity  as possible.
 % %
 % For example, if there is a high-secrecy write on the shared memory indexed by a constant, our type system only changes the security annotation of that particular location.
 % %
@@ -22,10 +22,11 @@ For example, if there is a high-secrecy write on the shared memory indexed by $\
 
 To address the second challenge regarding the interleaving of warps and blocks, we propose collecting an over-approximation of the read and write memory footprints for each warp and ensuring that these accesses do not result in undefined behavior due to a data race.
 %
-Given the unique parallelization paradigm of GPUs, where all warps run the same code and can be interleaved until reaching synchronization points, i.e., $\mathit{sync-threads}$, we can structure the program analysis to track and handle these interleavings effectively.
-As such, we can separate the code into several segments, separated by synchronization points $\mathit{sync-threads}$. 
+Given the unique parallelization paradigm of GPUs, where all warps run the same code and can be interleaved until reaching synchronization points (indicated in CUDA with the \texttt{syncthreads} instruction) \stefan{Changed formatting of syncthreads}, we can structure the program analysis to track and handle these interleavings effectively.
+As such, we can separate the code into several segments, separated by synchronization points.
 %
-We ensure that synchronization points are placed outside any conditional branches, allowing for precise segmentation.
+We ensure that synchronization points are placed outside any conditional branches, allowing for precise segmentation.\footnote{It is an error in CUDA for a
+\texttt{syncthreads} instruction to be executed inside a conditional branch or loop unless all threads in the warp are active.}
 %
 The warps can be interleaved freely within a segment but must synchronize before moving to the next segment.
 We propose breaking the code into multiple segments, separated by synchronization points.
@@ -71,11 +72,11 @@ $\mathsf{wID}; \mathsf{mask};\Sigma; \pc \vdash s  \dashv \Sigma'; \delta_\maths
 Here $\Sigma$ and $\Sigma'$ are the pre- and post-context, respectively, mapping local variables, shared memory, and global memory locations to security levels.
 %
 They correspond, respectively, to the security levels before and after the execution of the statement $s$ by threads that are in warp $\mathsf{wID}$ and satisfy $\mathsf{mask}$.
-$\mathsf{mask}$ indicates which threads within the warp are active.
+The mask $\mathsf{mask}$ indicates which threads within the warp are active.
 The $\pc$ represents the usual ``program counter'' level and serves to capture the indirect information flows.
-$\delta_\mathsf{write}$ and  $\delta_{\mathsf{read}}$ collect the sets of locations in shared memory that might be accessed during the execution of $s$ by write and read, respectively.
+Sets $\delta_\mathsf{write}$ and  $\delta_{\mathsf{read}}$ collect the locations in shared memory that might be accessed during the execution of $s$ by writes and reads, respectively.
 %
-For the expressions, we propose the  typing judgment $\mathsf{wID}; \mathsf{mask};\Sigma \vdash e: \tau; \delta_{\mathsf{read}}$.  Expressions cannot write to any memory locations and thus we do not need to adjust the security level of  locations in a post context; $\tau$ is the security level associated with $e$ in the context $\Sigma$ and $\delta_{\mathsf{read}}$ denotes the read footprint of $e$.
+For expressions, we propose the  typing judgment $\mathsf{wID}; \mathsf{mask};\Sigma \vdash e: \tau; \delta_{\mathsf{read}}$.  Expressions cannot write to any memory locations and thus we do not need to adjust the security level of  locations in a post context; $\tau$ is the security level associated with $e$ in the context $\Sigma$ and $\delta_{\mathsf{read}}$ denotes the read footprint of $e$.
 
 
 %  variables and concrete levels of the lattice $\mathit{Var} \rightarrow \Psi$.
@@ -148,11 +149,11 @@ If $i$ is a must-write ($\mathsf{MustW}$), it updates the security level to $\ma
 For locations with the $\mathsf{MayW}$ tag, we cannot disregard $\tau_i$ and write $\mathsf{pc} \sqcup \iota$ because the index is only an overapproximation, i.e., we must avoid the risk of lowering the security level, as in runtime,  the contents of $S[i]$ may not be updated.
 %
 Moreover, the write footprint in the conclusion is $\mathsf{set}(o, \mathsf{wID}, \mathsf{mask})$, and the read footprint is $\delta_{\mathsf{read}}$.
-\farzaneh{please check the above. not sure about all the details.}
+%\farzaneh{please check the above. not sure about all the details.}
 % This overapproximation is based on the assumption that any occurence of $\mathsf{tid}$ in $o$ is restricted to the warp under consideration $\mathsf{wID}$, and the set of (overapproximated) running threads, denoted by $\mathsf{mask}$.
 % % 
 
-We propose the following rule for handling if caluses in our type system. 
+We propose the following rule for handling $\mathsf{if}$ clauses in our type system. 
 {\small\begin{mathpar}
     \infer*[Right=]{
         \mathsf{wID}; \mathsf{mask};\Sigma \vdash  e: \iota; \delta^0_{\mathsf{read}}\\
@@ -252,7 +253,7 @@ To integrate taint tracking across all warps, we introduce the following rule th
     \end{mathpar}
 }
 
-Since segment separations via $\mathit{synch-threads}$ occur outside of if-clauses, we know that the program counter ($\mathsf{pc}$) is initially low for all warps, and all threads are active at the start.
+Since segment separations via \texttt{syncthreads} occur outside of if-clauses, we know that the program counter ($\mathsf{pc}$) is initially low for all warps, and all threads are active at the start.
 %
 The first premise of the rule constructs a typing derivation for every warp, calculating their memory footprint and post-context; in the premise $\mathsf{warps}$ refers to the set of all warps, which we assume is predetermined and static (or at least that we have an upper bound on the number of warps that will be allocated).
 % 
@@ -261,7 +262,7 @@ The rule builds a typing derivation for all warps in the set of all warps, calcu
 To ensure there are no data races, the second premise checks that the footprints of different warps do not overlap in a way that could result in undefined behavior, particularly when at least one warp performs a write operation on a particular location.
 %
  The post-context for all warps is then computed in the third premise as the lattice join of the post-contexts for each individual warp.
-\farzaneh{are warps known statically?}
+%\farzaneh{are warps known statically?}
 
 
 % We then establish taint tracking for each individual warp $\mathsf{wID}$ and each segment of the code $s_j$, by building the derivation for the judgment
@@ -303,7 +304,7 @@ To ensure there are no data races, the second premise checks that the footprints
           \cdots\\
           \Sigma_{n-1} \vdash s_n \dashv \Sigma_n\\
         }
-         {\Sigma_0 \vdash s_1; \mathit{sync-threads}; s_2; \cdots; \mathit{sync-threads}; s_n \dashv \Sigma_n}
+         {\Sigma_0 \vdash s_1; \texttt{syncthreads}; s_2; \cdots; \texttt{syncthreads}; s_n \dashv \Sigma_n}
         \end{mathpar}
     }
     %

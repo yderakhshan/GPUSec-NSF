@@ -156,7 +156,7 @@ Moreover, the static analysis does not support scenarios where two warps might t
 
 In Task 2b, we propose addressing the limitations of the static analysis approach by designing a dynamic taint tracking monitor.
 % 
-The dynamic monitor aims tracks the taint level of memory locations at runtime, ensuring that flows are accurately captured for the executed branch.
+The dynamic monitor tracks the taint level of memory locations at runtime, ensuring that flows are accurately captured for the executed branch.
 %
 To ensure the soundness of the dynamic monitor, we will add a static footprint analysis that checks for indirect leaks through non-executed branches for each thread. 
 % 

@@ -11,3 +11,4 @@ We will use the AES encryption algorithm as a benchmark.
 %
 We anticipate that using a static footprint analysis in the dynamic monitor will enable better performance compared to prior taint tracking systems, as it will help reduce unnecessary runtime calculations.
 \farzaneh{Do we need to add more?}
+\stefan{What are we implementing for 2b? Are we proposing an actual working runtime monitor? Would this require custom GPU drivers? (Presumably a non-starter unless we're working with NVIDIA)? Maybe a CUDA library that wraps read and write operations and does the tracking? Either way, this would be more than an OCaml implementation.}

@@ -28,7 +28,6 @@ Recognizing this, datacenter providers have started to provide GPU-as-a-service 
 For instance, Google's Kubernetes Engine allows for the sharing of a GPU among up to 48 tenants, while Microsoft has incorporated GPU paravirtualization into the Hyper-V Hypervisor, enabling VMs to share a single GPU.
 %
 Recent research~\cite{pietro2016TECS,hayes2017usenix} has revealed security vulnerabilities in GPUs rooted in the scheduling of multiple applications on a single GPU and lack of proper memory isolation between them.
-\farzaneh{I changed the structure of the above paragraphs a bit, please check.}
 
 The field of Information Flow Control (IFC) aims to guarantee that secure
 data within a program cannot leak to public output channels in unintended
@@ -39,7 +38,7 @@ guaranteeing IFC on CPU programs.
 %
 However, a study of \emph{GPU vulnerabilities} from the perspective of language-based security is missing from the literature.
 %
-Research on CPUs cannot be directly applied here, mainly because the memory model and parallelism paradigm are different from CPUs; the unique memory and execution models of GPUs  introduces new attacker models, including new side-channel attacks.
+Research on CPUs cannot be directly applied here, mainly because the memory model and parallelism paradigm are different from CPUs; the unique memory and execution models of GPUs  introduce new attacker models, including new side-channel attacks.
 
 % Recent research has revealed several security vulnerabilities in GPUs.
 %
@@ -82,7 +81,7 @@ While the performance and security pitfalls of the GPU programming model are wel
 As part of this work, we will gain a better formal understanding of this increasingly crucial computing platform.
 %
 This formal understanding will come in the form of Information Flow Control type systems for GPU programs, program logics for proving properties about memory and other resource usage of GPU programs, and operational semantics that model the execution of multi-program GPU systems and can be further enriched by a dynamic security monitor.
-\farzaneh{added the dynamic security monitor to the above sentence. Is it ok?}
+%\farzaneh{added the dynamic security monitor to the above sentence. Is it ok?}
 % \stefan{I specialize to CUDA here. I think this is a good place to do it, let me know if you disagree.}
 
 In the text and examples of this proposal, we focus on CUDA, a general-purpose GPU programming framework developed by NVIDIA.
@@ -121,7 +120,7 @@ In the attacks we consider in Thrust 2, the attacker has their own process in th
 %
 The victim and attacker both use the GPU server on the cloud.
 %
-The attacker, through leaks caused by lack of proper isolation for shared and  global memory locations between processes, can gain access to the contents of the victim process's address space that may have inadvertently left behind.
+The attacker, through leaks caused by lack of proper isolation for shared and  global memory locations between processes, can gain access to the contents of the victim process's address space that may have been inadvertently left behind.
 % through leaks caused by the reuse of the registers and memory locations between processes, can gain access to the contents of the victim process's address space.
 %
 (See Figure~\ref{fig:th2-attack}.)
@@ -180,6 +179,8 @@ that lead to the described vulnerabilities~\cite{MullerHo21}.
 We plan to use this logic and its implementation as a starting point for
 our work.
 \farzaneh{Some of the citations are missing from your paragraph?}
+\stefan{Those are all actually from the same paper. Does it look bad to just
+cite one?}
 \subsection{Broader Impacts}
 
 With the rise of machine learning and large language models and the recognition that the parallel performance of GPUs is necessary to achieve the required scaling, GPU computing has become a multi-trillion-dollar industry.

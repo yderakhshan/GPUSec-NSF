@@ -2,12 +2,12 @@
 The static algorithm above can be too restrictive since it does not have access to runtime values and also has to consider all possible interleavings of warps, while in runtime, depending on the scheduler, only some of these interleavings may actually happen. 
 %
 In this task, we plan to build a flow-sensitive hybrid runtime monitor inspired by Russo and Sabelfeld~\cite{russo2010CSF}
-that also accpets all statically typed programs in Task 2a.
+that also accepts all statically typed programs in Task 2a.
 %
 
 We plan to model the dynamic monitor using a set of operational semantics rules.
 %
-The rules work on the configuration of the form $\langle (s_1, \cdots, s_n); s, \sigma \rangle  \mid \langle \Sigma, (\Sigma_1, \cdots, \Sigma_n)\rangle$, where $s_k$ represents the running code on the warp $\mathsf{wID}_k$ for the current seqment, $s$ is the running code representing a sequence of segments being executed after the current segment is complete, $\sigma$ is the runtime memory state, which assigns values to locations,  $\Sigma $ is the state of the monitor, which  assigns security levels to locations, 
+The rules work on configurations of the form $\langle (s_1, \cdots, s_n); s, \sigma \rangle  \mid \langle \Sigma, (\Sigma_1, \cdots, \Sigma_n)\rangle$, where $s_k$ represents the running code on the warp $\mathsf{wID}_k$ for the current seqment, $s$ is the running code representing a sequence of segments being executed after the current segment is complete, $\sigma$ is the runtime memory state, which assigns values to locations,  $\Sigma $ is the state of the monitor, which  assigns security levels to locations, 
 and $\Sigma_k$ is a dynamic version of the pc level that tracks the nested conditional branches for each warp $\mathsf{wID}_k$.
 % $R$ is the queue of warps ordered by the scheduler that are currently waiting to run the current segment, and $C$ is the set of warps that have already completed running the current segment.
 %
@@ -32,9 +32,10 @@ The following rule models this idea.
 }
 The rule chooses to execute an instruction from warp $\mathsf{wID}_k$. 
 %
-The first premise is defined straightforward using a small-step semantics on a pair of code $s_k$ and memory state $\sigma$, and $\alpha$ is the summary of action taken by this step.
+The first premise is straightforward and uses a small-step semantics on a pair of code $s_k$ and memory state $\sigma$.
 %
-The action $\alpha$ will be used to update the state of the monitor in the second premise.
+The premise also includes $\alpha$, a summary of actions taken by this step,
+which will be used to update the state of the monitor in the second premise.
 %
 % $\delta$ in the second premise is the action of the monitor.
  %
@@ -53,7 +54,7 @@ This approach helps prevent indirect leaks through non-executed branches, as dis
 When all warps complete a particular segment, we continue with the rest of the next immediate segment $s'$ without changing the state of the monitor. In the following rule, $\mathsf{stop}$ and $\overline{\emptyset}$ state that all warps completed the code of the segment, and none of them is inside a branch, respectively. 
 {\small \begin{mathpar}
     \infer*[Right=]{
-      }{\langle \overline{\mathsf{stop}};(s';\mathit{sync-threads};\, s), \sigma \rangle  \mid  \langle \Sigma, \overline{\emptyset}\rangle\,\, \rightarrow\,\, \langle (s', \cdots , s'); s, \sigma \rangle  \mid  \langle \Sigma, \overline{\emptyset} \rangle}
+      }{\langle \overline{\mathsf{stop}};(s';\texttt{syncthreads};\, s), \sigma \rangle  \mid  \langle \Sigma, \overline{\emptyset}\rangle\,\, \rightarrow\,\, \langle (s', \cdots , s'); s, \sigma \rangle  \mid  \langle \Sigma, \overline{\emptyset} \rangle}
 \end{mathpar}
 }
 Finally, the rule below ensures that the kernel terminates only when every shared memory location is non-tainted; the monitor verifies that all shared memory locations are annotated with a security level of $\mathsf{Low}$.
@@ -72,7 +73,7 @@ Alternatively, the monitor could prevent future access to such tainted memory lo
 Similarly, we will design rules to mitigate the EoC attack concerning the global memory.
 
 
-We prove that our dynamic monitor is sound, i.e., given two low-equivalent initial memory states, if the first run of the program generates a final state, then there exists a possible execution of the second run that produces an identical final state. 
+We will prove that our dynamic monitor is sound, i.e., given two low-equivalent initial memory states, if the first run of the program generates a final state, then there exists a possible execution of the second run that produces an identical final state. 
 %
 This result is weaker than the result we aim to prove for the static analysis, as it relies on an existential quantifier for the second run, whereas the static analysis uses a universal quantifier, considering all possible interleavings of threads or warps.
 %
