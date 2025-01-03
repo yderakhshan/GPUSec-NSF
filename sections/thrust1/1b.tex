@@ -3,21 +3,21 @@ In Task 1a we follow the classical approach of establishing noninterference to e
 %
 In a realistic setting, small leaks of information should be tolerated by the system as long as they are limited and do not significantly compromise the secrecy or identity of other parties.
 % 
-Even if the attacker observes a different number of bank conflicts in two runs of the program, it may not be able to deduce ``too much'' information from it. 
+Even if the attacker observes a different number of bank conflicts in two runs of the program, they may not be able to deduce ``too much'' information from it. 
 %
 The precise threshold for “too much'' varies depending on the specifics of the system. 
 %
-For example, in the motivating AES example, if the encryption key rotation is set such that after every ten runs, a new random key is generated, then leaking one bit of information in every run cannot leak more than 10 bits of the ciphertext.
+For example, in the AES motivating example, if the encryption key rotation is set such that after every ten runs, a new random key is generated, then leaking one bit of information in every run cannot leak more than 10 bits of the ciphertext.
 %
 If we can quantify information leakage, we can compare it with the established threshold to ensure the system does not significantly compromise security.
 %
 In this task, we plan to maintain a realistic perspective on security by quantifying leaks via the timing side-channel.
 %
-We propose using the resource-aware Relational Hoare logic, along with its possible extensions, to manage quantitative information flow control based min-entropy and min-capacity, as introduced by Smith~\cite{smith2011ICQE}.
+We propose using the resource-aware Relational Hoare logic, along with its possible extensions, to manage quantitative information flow control based \stefan{insert ``on''?} min-entropy and min-capacity, as introduced by Smith~\cite{smith2011ICQE}.
 %
 The primary challenge for calculating the min-entropy is determining the cardinality of possible bank conflicts between two program executions that agree on low inputs.
 %
-To illustrate this approach, consider the following example: working on a secret $h$ which stores a two-bit value.
+To illustrate this approach, consider the following example, which uses a secret $h$ storing a two-bit value:
 \begin{lstlisting}
     if (h=00) {
       S[2 * threadIdx] = 0;} 
@@ -31,18 +31,17 @@ To illustrate this approach, consider the following example: working on a secret
          S[threadIdx] = 0;}}}
 \end{lstlisting}
 % in Figure~\ref{fig:qtable}.
-Based on the secret $h$, the program sends threads into four branches; in the first and third branches, there are no bank conflicts; in the second and fourth branches, there will be 16 bank conflicts.
+Based on the secret $h$, the program sends threads into four branches; in the first and third branches, there are no bank conflicts; in the second and fourth branches, there will be 16 bank conflicts. \stefan{Other way around? Also, while there will be 16 banks with conflicts, the way the resource metric measures the impact of conflicts is in terms of the maximum number of threads per warp accessing any bank (minus one)---this intuitively seems more directly correlated to access latency since it's the number of sequential accesses that would need to be performed---so the first and third branches would have a ``2-way'' bank conflict and the cost would be 1. So in this example the relational logic actually gives a tight bound on the cardinality of bank conflict possibilities :)}
 %
 % The condition of the branch is not divergent, meaning that all threads will execute the same branch, but depending on the value of the secret the branch can be different.
 % %
 We model the value of the secret $h$ as a random variable.
 %
-The attacker knows this a priori probability but cannot 
+The attacker knows this \textit{a priori} probability but cannot 
 observe the exact secret stored in $h$.
 %
-For simplicity, let us assume that the probability distribution of the secret is uniform.
-%
-Meaning that each possible 2-bit secret value $s$ for $h$ has the same probability of $1/4$, i.e., $P(h=s)= 1/4$ for any $s\in S=\{00,01,10,11\}$.
+For simplicity, let us assume that the probability distribution of the secret is uniform,
+meaning that each possible 2-bit secret value $s$ for $h$ has the same probability of $1/4$, i.e., $P(h=s)= 1/4$ for any $s\in S=\{00,01,10,11\}$.
 %
 %
 Min-entropy provides the probability of the attacker guessing the correct secret in one try.
